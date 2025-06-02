@@ -1,0 +1,312 @@
+% $Header$
+% MBDyn (C) is a multibody analysis code.
+% http://www.mbdyn.org
+%
+% Copyright (C) 1996-2023
+%
+% Pierangelo Masarati  <pierangelo.masarati@polimi.it>
+%
+% Dipartimento di Ingegneria Aerospaziale - Politecnico di Milano
+% via La Masa, 34 - 20156 Milano, Italy
+% http://www.aero.polimi.it
+%
+% Changing this copyright notice is forbidden.
+%
+% This program is free software; you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation (version 2 of the License).
+%
+%
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+%
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+This module implements a hydrodynamic lubricated plain bearing based on a numerical solution of the so called Reynolds equation\cite{DIRKBARTEL2010}. The following features are implemented:
+\begin{itemize}
+\item Finite Difference or Finite Element discretization
+\item mass conserving and non mass conserving cavitation models (e.g. G\"umbel, Jakobsson-Floberg-Ollson).
+\item asperity contact and dry friction considering stick-slip effects (e.g. Coulomb, LuGre)
+\item cylindrical bearings with small imperfections (e.g. barrel shape, cone shape, ellipse shape, grooves $\hdots$)
+\item arbitrary lubrication grooves and boundary conditions (e.g. pressure, density or filling ratio)
+\item optional coupling with hydraulic networks
+\item deformable shaft and bearing surfaces (e.g. two way fluid structure interaction)
+\end{itemize}
+
+\begin{Verbatim}[commandchars=\\\{\}]
+    \bnt{name} ::= \kw{hydrodynamic plain bearing2}
+
+    \bnt{arglist} ::=
+            \kw{hydraulic fluid},
+                (\hty{HydraulicFluid}) \bnt{hydraulic_fluid},
+            \kw{mesh}, \{ \kw{linear finite difference} | \kw{quadratic finite element} \},
+                \kw{enable mcp}, (\ty{bool}) \bnt{mixed_complementarity_problem}
+            \kw{geometry}, \kw{cylindrical},
+                \kw{mesh position}, \{ \kw{at shaft} | \kw{at bearing} \},
+                \kw{bearing width}, (\ty{real}) \bnt{bearing_width},
+                \kw{shaft diameter}, (\ty{real}) \bnt{diameter_shaft},
+                \kw{bearing diameter}, (\ty{real}) \bnt{diameter_bearing},
+                [ \kw{pockets}, \bnt{pockets_definition}, ]
+                \kw{shaft node},
+                    (\ty{StructNode}) \bnt{shaft_node_id},
+                    \kw{offset}, (\hty{Vec3}) \bnt{offset_shaft_center}
+                    \kw{orientation}, (\hty{OrientationMatrix}) \bnt{orientation_shaft_node},
+                \kw{bearing node},
+                    (\ty{StructNode}) \bnt{bearing_node_id},
+                    \kw{offset}, (\hty{Vec3}) \bnt{offset_bearing_center}
+                    \kw{orientation}, (\hty{OrientationMatrix}) \bnt{orientation_bearing_node},
+            \kw{grid spacing},
+                \bnt{grid_data}
+          \{  \kw{boundary conditions},
+                \bnt{boundary_condition_1},
+                \bnt{boundary_condition_2}, |
+                \kw{pressure coupling conditions axial},
+                (\ty{HydraulicNode}) \bnt{hydraulic_node_label_outlet1},
+                (\ty{HydraulicNode}) \bnt{hydraulic_node_label_outlet2},
+          \}
+          [ \kw{lubrication grooves}, \bnt{lubrication_groove_data}, ]
+          [ \kw{pressure coupling condition radial}, \bnt{pressure_coupling_condition_radial}, ]
+          [ \kw{contact model}, \bnt{contact_model}, ]
+          [ \kw{friction model}, \bnt{friction_model}, ]
+          [ \kw{compliance model}, \bnt{compliance_model}, ]
+            [ , \kw{pressure dof scale}, (\ty{real}) \bnt{pressure_dof_scale} ]
+            [ , \kw{equation scale}, (\ty{real}) \bnt{equation_scale} ]
+            [ , \kw{output pressure}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output contact pressure}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output density}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output friction loss}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output clearance}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output clearance derivative}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output velocity}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output stress}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output reaction force}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output total deformation}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output deformation bearing}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output deformation shaft}, \{ \kw{yes} | \kw{no} \} ]
+            [ , \kw{output mesh, yes}, \{ \kw{yes} | \kw{no} \} ]
+
+\end{Verbatim}
+\paragraph{Grid}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{grid_data} :: = \{ \bnt{grid_data_uniform} | \bnt{grid_data_intervals} \}
+
+     \bnt{grid_data_uniform} :: = \kw{uniform}, \{ \bnt{grid_data_uniform_nodes} | \bnt{grid_data_uniform_elements} \}
+
+     \bnt{grid_data_uniform_nodes} :: =
+         \kw{number of nodes z}, (\ty{real}) \bnt{number_of_nodes_z},
+         \kw{number of nodes Phi}, (\ty{real}) \bnt{number_of_nodes_x}
+
+     \bnt{grid_data_uniform_elements} :: =
+         \kw{number of elements z}, (\ty{real}) \bnt{number_of_elements_z},
+         \kw{number of elements Phi}, (\ty{real}) \bnt{number_of_elements_x}
+
+     \bnt{grid_data_intervals} :: =
+         \kw{uniform intervals},
+         \kw{number of intervals z}, (\ty{integer}) \bnt{number_intervals_axial},
+         \bnt{interval_data},
+         \kw{number of intervals x}, (\ty{integer}) \bnt{number_intervals_circumference},
+         \bnt{interval_data},
+\end{Verbatim}
+\begin{Verbatim}[commandchars=\\\{\}]
+
+     \bnt{interval_data} :: =
+        (\ty{real}) \bnt{position}, (\ty{integer}) \bnt{number_of_nodes_1},
+        (\ty{real}) \bnt{position}, (\ty{integer}) \bnt{number_of_nodes_2},
+        ... ,
+        (\ty{real}) \bnt{position}, (\ty{integer}) \bnt{number_of_nodes_N},
+
+\end{Verbatim}
+\paragraph{Pockets}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{pockets_definition} :: =
+         \bnt{pocket_definition_1},
+         ...
+         \bnt{pocket_definition_N}
+
+     \bnt{pocket_definition} :: =
+      \{ \kw{shaft} | \kw{bearing} \},
+           (\ty{integer}) \bnt{number_of_pockets},
+             \bnt{pocket_shape_1},
+             ...
+             \bnt{pocket_shape_N},
+
+     \bnt{pocket_shape}
+         \kw{position},
+           (\ty{real}) \bnt{pocket_position_x_1},
+           (\ty{real}) \bnt{pocket_position_z_1},
+           \bnt{pocket_area_2D},
+           \kw{pocket height}, \{ \kw{const} | \kw{surface grid} \},
+              \bnt{pocket_height_definition}
+
+     \bnt{pocket_area_2D} ::=
+      \{ \bnt{pocket_area_circular} | \bnt{pocket_area_rectangular} | \kw{complete surface} \}
+
+     \bnt{pocket_area_circular} :: =
+         \kw{circle},
+         \kw{radius}, (\ty{real}) \bnt{pocket_radius},
+
+     \bnt{pocket_area_rectangular} :: =
+          \kw{rectangle},
+          \kw{width}, (\ty{real}) \bnt{pocket_width},
+          \kw{height}, (\ty{real}) \bnt{pocket_height}
+
+     \bnt{pocket_height_definition} :: =
+       \{ \bnt{pocket_height_definition_const} | \bnt{pocket_height_definition_grid} \}
+
+     \bnt{pocket_height_definition_const} = \kw{const}, (\ty{real}) \bnt{pocket_height}
+
+     \bnt{pocket_height_definition_grid} = \kw{surface grid},
+         \kw{x}, (\ty{integer}) \bnt{number_grid_points_x}, (\ty{real}) \bnt{x_1}, ... , (\ty{real}) \bnt{x_N}
+         \kw{z}, (\ty{integer}) \bnt{number_grid_points_z}, (\ty{real}) \bnt{z_1}, ... , (\ty{real}) \bnt{z_N}
+         \kw{delta y}, (\ty{real}) \bnt{y_11}, (\ty{real}) \bnt{y_12}, ... , (\ty{real}) \bnt{y_NM}
+
+\end{Verbatim}
+\paragraph{Boundary conditions}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{boundary_condition} :: =
+      \{ \kw{pressure} | \kw{density} | \kw{filling ratio} \},
+         (\hty{DriveCaller}) \bnt{boundary_condition_value}
+\end{Verbatim}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{lubrication_groove_data} :: =
+         (\ty{integer}) \bnt{number_of_grooves},
+         \bnt{lubrication_groove_definition_1},
+          ...
+         \bnt{lubrication_groove_definition_N},
+
+     \bnt{lubrication_groove_definition} :: =
+      \{ \kw{at shaft} | \kw{at bearing} \},
+         \bnt{boundary_condition},
+         \kw{position}, (\ty{real}) \bnt{position_x}, (\ty{real}) \bnt{position_z},
+         \bnt{lubrication_groove_dimensions}
+
+     \bnt{lubrication_groove_dimensions} :: =
+      \{ \bnt{lubrication_groove_dim_circular} | \bnt{lubrication_groove_dim_rectangular} \}
+
+     \bnt{lubrication_groove_dim_circular} :: =
+         \kw{circle},
+         \kw{radius}, (\ty{real}) \bnt{lubrication_groove_radius}
+
+     \bnt{lubrication_groove_dim_rectangular} :: =
+         \kw{rectangle},
+         \kw{width}, (\ty{real}) \bnt{lubrication_groove_width},
+         \kw{height}, (\ty{real}) \bnt{lubrication_groove_height}
+
+\end{Verbatim}
+\paragraph{Coupling with hydraulic networks}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \kw{pressure coupling conditions radial}, (\ty{integer}) \bnt{number_of_inlets},
+         \bnt{pressure_coupling_condition_1},
+         ...,
+         \bnt{pressure_coupling_condition_N}
+
+     \bnt{pressure_coupling_condition} :: =
+         \bnt{lubrication_groove_dimensions},
+         \kw{pressure node}, (\ty{HydraulicNode}) \bnt{hydraulic_node_label_inlet},
+\end{Verbatim}
+\paragraph{Contact model}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{contact_model} :: =
+         \kw{greenwood tripp},
+         \kw{E1}, (\ty{real}) \bnt{young_modulus_1},
+         \kw{nu1}, (\ty{real}) \bnt{poisson_ratio_1},
+         \kw{E2}, (\ty{real}) \bnt{young_modulus_2},
+         \kw{nu2}, (\ty{real}) \bnt{poisson_ratio_2},
+         \kw{M0}, (\ty{real}) \bnt{combined_spectral_moment_M0},
+         \kw{M2}, (\ty{real}) \bnt{combined_spectral_moment_M2},
+         \kw{M4}, (\ty{real}) \bnt{combined_spectral_moment_M4},
+\end{Verbatim}
+\paragraph{Friction model - dry friction}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{friction_model} :: =
+      \{ \kw{coulomb} | \kw{lugre} \},
+         \bnt{friction_model_data}
+
+     \bnt{friction_model_data} :: =
+      \{ \bnt{friction_model_data_coulomb} | \bnt{friction_model_data_lugre} \}
+
+     \bnt{friction_model_data_coulomb} :: =
+         \kw{mu}, (\ty{real}) \bnt{coulomb_friction_coefficient}
+     [ , \kw{sliding velocity threshold}, (\ty{real}) \bnt{sliding_velocity_threshold} ]
+
+     \bnt{friction_model_data_lugre} :: =
+         \kw{method}, \{ \kw{implicit euler} | \kw{trapezoidal rule} \},
+         \kw{coulomb friction coefficient}, (\ty{real}) \bnt{coulomb_friction_coefficient},
+       [ \kw{static friction coefficient}, (\ty{real}) \bnt{static_friction_coefficient}, ]
+       [ \kw{sliding velocity coefficient}, (\ty{real}) \bnt{sliding_velocity_coefficient}, ]
+         \kw{micro slip stiffness}, (\ty{real}) \bnt{micro_slip_stiffness_sigma0},
+       [ \kw{micro slip damping}, (\ty{real}) \bnt{micro_slip_damping_sigma1} ]
+\end{Verbatim}
+\paragraph{Compliance model}
+\begin{Verbatim}[commandchars=\\\{\}]
+     \bnt{compliance_model} :: =
+      \{ \bnt{compliance_mod_nodal} | \bnt{compliance_mod_double_nodal} \}
+
+     \bnt{compliance_mod_nodal} :: =
+         \kw{matrix}, 1, \bnt{compliance_matrix_data},
+         \kw{matrix}, 2, \bnt{compliance_matrix_data}
+
+     \bnt{compliance_mod_double_nodal} :: =
+         \kw{double nodal},
+         \kw{matrix at shaft}, \bnt{compliance_matrix_data},
+         \kw{matrix at bearing}, \bnt{compliance_matrix_data},
+         \kw{axial displacement}, \{ \kw{small} | \kw{large} \}
+
+     \bnt{compliance_matrix_data} :: =
+      \{ \bnt{compliance_matrix_half_space} | \bnt{compliance_matrix_from_file} \}
+
+     \bnt{compliance_matrix_half_space} :: =
+         \kw{elastic half space},
+     [ , \kw{E1}, (\ty{real}) \bnt{E1} ]
+     [ , \kw{nu1}, (\ty{real}) \bnt{nu1} ]
+
+     \bnt{compliance_matrix_from_file} :: =
+         \kw{from file}, " \bnt{compliance_matrix_file} "
+     [ , \kw{E1}, (\ty{real}) \bnt{E1} ]
+     [ , \kw{nu1}, (\ty{real}) \bnt{nu1} ]
+     [ , \kw{modal element}, (\hty{ModalJoint}) \bnt{elem_id_modal_joint} ]
+\end{Verbatim}
+
+\subsubsection{Mass conserving versus non-mass conserving cavitation}
+In order to use a mass conserving cavitation model, a \kw{linear compressible} hydraulic fluid must be selected. In that case the fluid density at the surface of the bearing may vary between zero and the liquid density, which is equal to the reference density of the hydraulic fluid, during the simulation. Otherwise, an \kw{incompressible} hydraulic fluid should be used, and the density of the fluid will remain constant during the simulation.
+\subsubsection{Finite Difference versus Finite Element discretization}
+Mass conserving cavitation models are not yet supported by the Finite Element discretization.
+\subsubsection{MCP based solution}
+This option may be used if, and only if a mass conserving cavitation model is used and a proper nonlinear solver has been selected. See also section~\ref{sec:problems:nonlin:mcp}.
+\subsubsection{Bearing geometry}
+Currently only bearings with cylindrical surfaces are supported. The main dimensions are \bnt{diameter\_shaft}, \bnt{diameter\_bearing} and \bnt{bearing\_widht} and the so called relative clearance $\Psi$ is:
+\begin{equation}
+\Psi=\frac{\bnt{diameter\_bearing} - \bnt{diameter\_shaft}}{\bnt{diameter\_shaft}}
+\end{equation}
+Small deviations from a perfectly cylindrical bearing (e.g. barrel shape, cone shape) may be specified by means of \bnt{pockets}. See also the technical manual for details.
+\subsubsection{Structural nodes}
+It is possible to specify an arbitrary offset and orientation between the center of the bearing and the related structural node. Actually, the bearing and shaft axes are aligned to the z-axis of of the orientation matrices \bnt{orientation\_shaft\_node} and \bnt{orientation\_bearing\_node}.
+\subsubsection{Computational grid}
+Regarding the mesh- or grid-size, it is possible to define either a fixed number of nodes or a fixed number of elements in axial or ``z''-direction and in circumferential or ``Phi''-direction. Also a non-constant grid size is supported.
+\subsubsection{Boundary conditions, lubrication grooves and coupling conditions}
+Boundary conditions at the edges of the bearing may be specified by means of drive callers or hydraulic nodes.
+\subsubsection{Contact model}
+The contact model is based on Greenwood and Tripp\cite{Greenwood-1970}. Input parameters are Young's modulus and Poisson's ratio of both surfaces and also the combined spectral moments of the surface roughness profiles. See the technical manual for further details.
+\subsubsection{Friction model}
+In case of solid contact inside the bearing, dry friction may be considered by means of a Coulomb or 2D-LuGre friction model\cite{LuGre2D}. Actually, the transition between sticking and sliding can be considered only by means of the LuGre model. See also the technical manual for further details.
+\subsubsection{Compliance model}
+If the deformation of the shaft and/or bearing surfaces should be considered (e.g. two way fluid structure interaction), a compliance model must be used. The following options are supported:
+\begin{itemize}
+\item{Nodal compliance model:} Only the bearing surface at the body attached to the mesh is considered as flexible. If a second matrix is provided, the values are just summed up. However, this is valid only if the component which is not attached to the mesh is axisymmetric. So, the actual relative orientation between shaft and bearing surface does not affect the flexibility.
+\item{Double nodal compliance model:} Both surfaces (e.g. shaft and bearing) are considered as flexible without any restrictions. In this case the pressure distribution and deformation will be interpolated between the shaft and bearing surface as required.
+\end{itemize}
+\paragraph{Elastic half space}
+Based on the assumption of a semi-infinite body, the compliance matrix can be computed automatically without any additional data.
+\paragraph{Compliance matrix from file}
+In most situations, all the compliance matrices should be computed by \htmladdnormallink{\texttt{mboct-fem-pkg}}{https://github.com/octave-user/mboct-fem-pkg} and stored in a file \bnt{compliance\_matrix\_file}. The related function is called ``fem\_ehd\_pre\_comp\_mat\_unstruct'' and the following options are available:
+\begin{itemize}
+\item{Quasi static nodal compliance model (matrix type ``nodal'')}
+\item{Fully dynamic compliance model coupled to the mode shapes of a modal joint (matrix type ``modal substruct total''):} In this case the related modal joint (e.g. \bnt{elem\_id\_modal\_joint}) must be provided in the input file. In addition to that, the related structural node (e.g. \bnt{shaft\_node\_id} or \bnt{bearing\_node\_id}) should be attached to the ``modal node'' of the same modal joint. See also \ref{sec:EL:STRUCT:JOINT:MODAL}.
+\end{itemize}
+
+\subsubsection{Output}
+Actually, the data structure of all the output is quite complex. So, it is recommended to use \htmladdnormallink{\texttt{mboct-mbdyn-pkg}}{https://github.com/octave-user/mboct-mbdyn-pkg} in order to load and display the output. See also the documentation of ``mbdyn\_post\_ehd\_load\_output''.

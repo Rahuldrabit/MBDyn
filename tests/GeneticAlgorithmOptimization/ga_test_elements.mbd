@@ -1,0 +1,15 @@
+# Spring element for GA optimization
+joint: 1, total joint,
+    1,
+        position, reference, node, null,
+        position orientation, reference, node, eye,
+        rotation orientation, reference, node, eye,
+    2,
+        position, reference, node, null,
+        position orientation, reference, node, eye,
+        rotation orientation, reference, node, eye,
+    position constraint, 1, 1, 1, null,
+    orientation constraint, 1, 1, 1, null;
+
+spring: 1, 1, 2,
+    stiffness, 10.0; # Initial value, will be optimized by GA

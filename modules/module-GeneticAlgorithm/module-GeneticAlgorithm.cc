@@ -126,14 +126,45 @@ unsigned int GeneticAlgorithmOptimization::iGetNumDof(void) const
 
 void GeneticAlgorithmOptimization::Output(OutputHandler& OH) const
 {
-    // Output optimization results
+    // Example: Output best solution found
+    OH << "Best solution: ";
+    for (double v : bestSolution) {
+        OH << v << " ";
+    }
+    OH << std::endl;
 }
 
 void GeneticAlgorithmOptimization::SetValue(DataManager *pDM,
                                            VectorHandler& X, VectorHandler& XP,
                                            SimulationEntity::Hints *ph)
 {
-    // Implement GA optimization logic here
+    // 1. Initialize population (example: vector of vectors)
+    std::vector<std::vector<double>> population;
+    // ...initialize...
+
+    // 2. Main GA loop
+    for (int generation = 0; generation < maxGenerations; ++generation) {
+        // a. Evaluate fitness for each individual
+        for (auto& individual : population) {
+            double fitness = 0.0;
+            // ...evaluate fitness using element data...
+        }
+
+        // b. Selection
+        // ...select individuals...
+
+        // c. Crossover
+        // ...crossover logic...
+
+        // d. Mutation
+        // ...mutation logic...
+
+        // e. Update best solution
+        // ...track best...
+    }
+
+    // 3. Output or update results
+    // ...set output drives or print best solution...
 }
 
 extern "C" bool genetic_algorithm_set(void)

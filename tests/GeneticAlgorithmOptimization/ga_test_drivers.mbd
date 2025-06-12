@@ -1,0 +1,4 @@
+# Driver to apply force for static deflection
+force: 2, 2,
+    reference, global, null,
+    1., 0., 0.; # 1N force in x-direction

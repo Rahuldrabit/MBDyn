@@ -1,0 +1,22 @@
+# Nodes for GA spring-mass optimization test
+
+# Ground node (fixed)
+structural: 1, static,
+	reference, global, 0., 0., 0.,
+	reference, global, eye,
+	reference, global, null,
+	reference, global, null;
+
+# Mass 1 node (dynamic)
+structural: 2, dynamic,
+	reference, global, 1., 0., 0.,
+	reference, global, eye,
+	reference, global, 0.1, 0., 0.,
+	reference, global, null;
+
+# Mass 2 node (dynamic)
+structural: 3, dynamic,
+	reference, global, 2., 0., 0.,
+	reference, global, eye,
+	reference, global, -0.05, 0., 0.,
+	reference, global, null;

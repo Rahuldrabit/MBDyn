@@ -1,0 +1,76 @@
+# GA Super Element for spring-mass optimization
+
+user defined: 1001, genetic algorithm,
+	# Input parameters (design variables)
+	inputs: 4,
+	elements: 1, 2,  # Spring elements to optimize
+	element types: "spring", "spring",
+	data names: "stiffness", "stiffness", "damping", "damping",
+	
+	# Output parameters (objectives/constraints)
+	outputs: 6,
+	output drives: 1, 2, 3, 4, 5, 6,
+	
+	# Objective function: minimize difference from target frequencies and damping
+	fitness function: "sqrt((freq1-TARGET_FREQ1)^2 + (freq2-TARGET_FREQ2)^2 + 
+	                      100*(damp1-TARGET_DAMP1)^2 + 100*(damp2-TARGET_DAMP2)^2)",
+	
+	# Constraints: keep parameters within bounds
+	constraints function: "K1>=K1_MIN && K1<=K1_MAX && K2>=K2_MIN && K2<=K2_MAX && 
+	                      C1>=C1_MIN && C1<=C1_MAX && C2>=C2_MIN && C2<=C2_MAX",
+	
+	# GA specific parameters
+	population size: GA_POP_SIZE,
+	generations: GA_MAX_GEN,
+	mutation rate: GA_MUTATION_RATE,
+	crossover rate: GA_CROSSOVER_RATE,
+	elite count: integer(GA_POP_SIZE * GA_ELITE_FRACTION),
+	
+	# Selection method
+	selection method: "tournament",
+	tournament size: GA_TOURNAMENT_SIZE,
+	
+	# Mutation operators
+	mutation type: "gaussian",
+	mutation sigma: 0.1,
+	adaptive mutation: yes,
+	
+	# Crossover operators  
+	crossover type: "blx_alpha",
+	crossover alpha: 0.5,
+	
+	# Hill climbing
+	hill climbing: yes,
+	hill climb rate: GA_HILL_CLIMB_RATE,
+	hill climb frequency: GA_HILL_CLIMB_FREQ,
+	hill climb method: "steepest_descent",
+	
+	# Convergence criteria
+	convergence tolerance: GA_CONVERGENCE_TOL,
+	convergence generations: 20,
+	
+	# Diversity maintenance
+	niching: yes,
+	niche radius: 0.1,
+	sharing parameter: 2.0,
+	
+	# Parallel processing
+	parallel evaluation: yes,
+	number of threads: 4,
+	
+	# Initial population
+	initial population: "ga_initial_population.dat",
+	
+	# Output files
+	output results: "ga_optimization_results.out",
+	output frequency: 5,
+	output best individual: "ga_best_individual.out",
+	output population: "ga_population_history.out",
+	output statistics: "ga_statistics.out",
+	
+	# Random seed for reproducibility
+	random seed: 12345,
+	
+	# Restart capability
+	restart file: "ga_restart.dat",
+	save restart frequency: 25;

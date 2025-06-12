@@ -1,0 +1,23 @@
+# Elements for GA spring-mass optimization test
+
+# Mass 1 body
+body: 1, 2,
+	10.0,  # mass [kg]
+	reference, node, null,
+	diag, 1.0, 1.0, 1.0;  # inertia
+
+# Mass 2 body  
+body: 2, 3,
+	5.0,   # mass [kg]
+	reference, node, null,
+	diag, 0.5, 0.5, 0.5;  # inertia
+
+# Spring 1 (ground to mass1) - to be optimized by GA
+spring: 1, 1, 2,
+	linear elastic, 1000.0,  # initial stiffness [N/m]
+	linear viscous, 10.0;    # damping [N*s/m]
+
+# Spring 2 (mass1 to mass2) - to be optimized by GA
+spring: 2, 2, 3,
+	linear elastic, 500.0,   # initial stiffness [N/m]
+	linear viscous, 5.0;     # damping [N*s/m]

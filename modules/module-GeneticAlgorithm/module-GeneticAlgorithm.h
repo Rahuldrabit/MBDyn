@@ -14,7 +14,8 @@ private:
     std::vector<unsigned int> outputDrives;
     std::string fitnessFunction;
     std::string constraintsFunction;
-    // Add more private members for GA operations
+    std::string selectionMethod;
+    std::string hillClimbingMethod;/ Add more private members for GA operations
 
 public:
     GeneticAlgorithmOptimization(unsigned uLabel, const DofOwner* pDO, 

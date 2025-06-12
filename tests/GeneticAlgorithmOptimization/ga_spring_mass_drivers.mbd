@@ -1,7 +1,0 @@
-# Drivers for GA spring-mass optimization test
-
-# Time-varying force on mass 2
-force: 1, 3,
-	reference, node, null,
-	reference, node, 1., 0., 0.,
-	const, 100.0 * sin(2*pi*2.0*Time);  # 100N sinusoidal force at 2Hz

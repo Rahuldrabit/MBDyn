@@ -1,9 +1,0 @@
-begin: data;
-
-include: "ga_test_nodes.mbd";
-include: "ga_test_elements.mbd";
-include: "ga_test_drivers.mbd";
-include: "ga_test_private.mbd";
-include: "ga_test_ga_super_element.mbd";
-
-end: data;

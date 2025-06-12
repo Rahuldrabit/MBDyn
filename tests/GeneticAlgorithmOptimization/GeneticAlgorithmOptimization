@@ -1,15 +1,15 @@
 # MBDyn Genetic Algorithm Optimization Test File
 # Comprehensive GA implementation with multiple operators and methods
 
-user defined: spring_optimization_ga, genetic algorithm,
+user defined: structural_optimization_ga, genetic algorithm,
     inputs: 3,
     elements: 1001, 1002, 1003,
-    element types: "spring", "mass", "damper",
-    data names: "spring_stiffness", "damping_coefficient", "mass_value",
+    element types: "beam", "mass", "damper",
+    data names: "beam_stiffness", "damping_coefficient", "mass_value",
     outputs: 2,
     output drives: "displacement_drive", "force_drive",
     fitness function: "minimize(abs(target_displacement - actual_displacement) + 0.1*mass_penalty)",
-    constraints function: "spring_stiffness > 1.0 && spring_stiffness < 100.0 && mass_value > 0.1",
+    constraints function: "beam_stiffness > 1.0 && beam_stiffness < 100.0 && mass_value > 0.1",
     
     # Selection Operators
     selection_method: "tournament",  # options: "roulette_wheel", "tournament", "rank_based", "sus", "elitism"
@@ -47,23 +47,23 @@ user defined: spring_optimization_ga, genetic algorithm,
     population_diversity_threshold: 0.01,
     
     # Optional parameters
-    initial population: "initial_spring_population.dat",
-    output results: "spring_optimization_results.out",
+    initial population: "initial_population.dat",
+    output results: "optimization_results.out",
     statistics_file: "ga_statistics.log",
     convergence_plot: "convergence_history.dat",
     diversity_tracking: true,
     seed: 42
 
 # Alternative configuration for single-state hill climbing
-user defined: spring_hill_climbing, genetic algorithm,
+user defined: structural_hill_climbing, genetic algorithm,
     inputs: 2, 
     elements: 2001, 2002,
-    element types: "spring", "mass",
-    data names: "k_spring", "m_mass",
+    element types: "beam", "mass",
+    data names: "k_beam", "m_mass",
     outputs: 1,
     output drives: "response_drive",
     fitness function: "minimize(response_error^2)",
-    constraints function: "k_spring > 0.5 && m_mass > 0.05",
+    constraints function: "k_beam > 0.5 && m_mass > 0.05",
     
     # Single-state hill climbing configuration
     optimization_mode: "single_state",
@@ -83,10 +83,10 @@ user defined: spring_hill_climbing, genetic algorithm,
     trace_file: "hill_climbing_trace.log"
 
 # Multi-objective optimization example
-user defined: multi_objective_spring, genetic algorithm,
+user defined: multi_objective_structural, genetic algorithm,
     inputs: 4,
     elements: 3001, 3002, 3003, 3004,
-    element types: "spring", "spring", "damper", "mass", 
+    element types: "beam", "beam", "damper", "mass", 
     data names: "k1", "k2", "c_damping", "total_mass",
     outputs: 3,
     output drives: "displacement_1", "displacement_2", "force_reaction",

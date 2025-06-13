@@ -1,0 +1,254 @@
+# Integration test for genetic algorithm optimization of cantilever beam
+# Objective: Minimize tip displacement while maintaining structural constraints
+
+begin: data;
+    problem: initial value;
+end: data;
+
+begin: initial value;
+    initial time: 0.0;
+    final time: 2.0;
+    time step: 0.01;
+    tolerance: 1e-6;
+    max iterations: 10;
+    output: iterations;
+end: initial value;
+
+begin: control data;
+    structural nodes: 11;
+    rigid bodies: 10;
+    beams: 10;
+    forces: 1;
+    
+    # Genetic algorithm optimization element
+    user defined elements: 1;
+end: control data;
+
+# Define beam geometry and properties
+set: real L = 1.0;          # Total beam length
+set: real n_elements = 10;   # Number of beam elements
+set: real dx = L/n_elements; # Element length
+
+# Material properties (to be optimized)
+set: real E_base = 2.1e11;   # Base Young's modulus
+set: real rho = 7850.0;      # Density
+
+# Cross-section properties (to be optimized)
+set: real h_base = 0.02;     # Base beam height
+set: real b_base = 0.01;     # Base beam width
+
+begin: nodes;
+    # Structural nodes for beam elements
+    structural: 1, static,
+        0.0, 0.0, 0.0,
+        eye,
+        null, null;
+    
+    # Create nodes along the beam
+    structural: 2, dynamic,
+        dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 3, dynamic,
+        2*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 4, dynamic,
+        3*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 5, dynamic,
+        4*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 6, dynamic,
+        5*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 7, dynamic,
+        6*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 8, dynamic,
+        7*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 9, dynamic,
+        8*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 10, dynamic,
+        9*dx, 0.0, 0.0,
+        eye,
+        null, null;
+        
+    structural: 11, dynamic,
+        L, 0.0, 0.0,
+        eye,
+        null, null;
+end: nodes;
+
+begin: elements;
+    # Fixed support at the root
+    joint: 1, clamp, 1, node, node;
+    
+    # Beam elements with variable cross-section
+    beam3: 1, 
+        1, null,
+        2, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 2,
+        2, null,
+        3, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 3,
+        3, null,
+        4, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 4,
+        4, null,
+        5, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 5,
+        5, null,
+        6, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 6,
+        6, null,
+        7, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 7,
+        7, null,
+        8, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 8,
+        8, null,
+        9, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 9,
+        9, null,
+        10, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    beam3: 10,
+        10, null,
+        11, null,
+        eye,
+        linear elastic generic,
+            diag, E_base, E_base*h_base*b_base^3/12, E_base*b_base*h_base^3/12,
+                  E_base*h_base*b_base^3/12 + E_base*b_base*h_base^3/12, 0., 0.,
+        same,
+        from nodes,
+        rho, b_base*h_base, diag, h_base*b_base^3/12, b_base*h_base^3/12, 0.;
+    
+    # Applied load at tip
+    force: 1, absolute,
+        11,
+            position, null,
+            0., 0., 1.,
+        const, 1000.0;
+    
+    # Define output drives for optimization
+    drive caller: 100, node, 11, structural, string, "X[3]";  # Tip displacement
+    drive caller: 101, element, 1, beam, string, "sigma_max"; # Maximum stress
+    
+    # Genetic Algorithm Optimization Element
+    user defined: 1000, genetic algorithm,
+        inputs: 3,
+        elements: 1, 2, 3,  # First three beam elements
+        element types: "beam3", "beam3", "beam3",
+        data names: "height", "width", "youngs_modulus",
+        outputs: 2,
+        output drives: 100, 101,  # Tip displacement and max stress
+        
+        # Objective: minimize displacement while keeping stress under limit
+        fitness function: "minimize(abs(tip_displacement)) + penalty(max_stress > 200e6)",
+        constraints function: "height > 0.005 && height < 0.1 && width > 0.005 && width < 0.05 && youngs_modulus > 1e11 && youngs_modulus < 3e11",
+        
+        # GA Parameters
+        population size: 20,
+        generations: 50,
+        selection method: "tournament",
+        tournament size: 3,
+        crossover method: "two_point",
+        crossover rate: 0.8,
+        mutation method: "gaussian",
+        mutation rate: 0.1,
+        gaussian sigma: 0.05,
+        
+        # Output
+        output results: "beam_optimization_results.dat",
+        convergence plot: "beam_convergence.dat";
+end: elements;
+
+# vim:ft=mbd

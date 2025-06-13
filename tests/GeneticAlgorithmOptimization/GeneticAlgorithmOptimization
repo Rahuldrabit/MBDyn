@@ -1,7 +1,7 @@
 # MBDyn Genetic Algorithm Optimization Test File
 # Comprehensive GA implementation with multiple operators and methods
 
-user defined: structural_optimization_ga, genetic algorithm,
+user defined:1001, structural_optimization_ga, genetic algorithm,
     inputs: 3,
     elements: 1001, 1002, 1003,
     element types: "beam", "mass", "damper",
@@ -55,7 +55,7 @@ user defined: structural_optimization_ga, genetic algorithm,
     seed: 42
 
 # Alternative configuration for single-state hill climbing
-user defined: structural_hill_climbing, genetic algorithm,
+user defined: 1001, structural_hill_climbing, genetic algorithm,
     inputs: 2, 
     elements: 2001, 2002,
     element types: "beam", "mass",
@@ -83,7 +83,7 @@ user defined: structural_hill_climbing, genetic algorithm,
     trace_file: "hill_climbing_trace.log"
 
 # Multi-objective optimization example
-user defined: multi_objective_structural, genetic algorithm,
+user defined: 1001, multi_objective_structural, genetic algorithm,
     inputs: 4,
     elements: 3001, 3002, 3003, 3004,
     element types: "beam", "beam", "damper", "mass", 

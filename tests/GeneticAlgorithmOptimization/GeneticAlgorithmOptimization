@@ -145,3 +145,26 @@ user defined: crossover_comparison, genetic algorithm,
     output results: "crossover_comparison.out",
     method_statistics: "crossover_stats.log",
     performance_metrics: "crossover_performance.dat"
+
+user defined: 1000, genetic algorithm optimization,
+inputs number, 5,
+element, 101, joint, string, "M[2]", direct,
+element, 102, joint, string, "M[2]", direct,
+element, 103, joint, string, "M[2]", direct,
+element, 104, joint, string, "M[2]", direct,
+element, 105, joint, string, "M[2]", direct,
+fitness function: "Multi-Objective or Simulation-Based or Composite/Hierarchical",
+constraints function: "libgaconstraints.so",
+    
+    # Selection method configuration
+    selection_method: "tournament",
+    tournament_size: 3,
+    
+    # Basic GA parameters
+    population size: 20,
+    generations: 30,
+    mutation_rate: 0.1,
+    crossover_rate: 0.8,
+    
+    # Output configuration
+    output results: "optimization_1000.out"

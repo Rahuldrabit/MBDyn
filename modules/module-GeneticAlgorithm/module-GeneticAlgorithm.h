@@ -3,19 +3,24 @@
 
 #include "userelem.h"
 #include "drive.h"
+#include <vector>
+#include <string>
+#include <map>
 
 class GeneticAlgorithmOptimization : public UserDefinedElem {
 private:
     unsigned int inputsNumber;
-    unsigned int outputNumber;
-    std::vector<unsigned int> elementLabels;
-    std::vector<std::string> elementTypes;
-    std::vector<std::string> dataNames;
-    std::vector<unsigned int> outputDrives;
-    std::string fitnessFunction;
-    std::string constraintsFunction;
-    std::string selectionMethod;
-    std::string hillClimbingMethod;/ Add more private members for GA operations
+    struct ElementInput {
+        unsigned int label;
+        std::string jointType;
+        std::string privateDataType;
+        std::string privateDataValue;
+        std::string accessType;
+    };
+    std::vector<ElementInput> elements;
+    std::string fitnessFunctionType;
+    std::string constraintsFunctionLib;
+    // ...other GA parameters...
 
 public:
     GeneticAlgorithmOptimization(unsigned uLabel, const DofOwner* pDO, 

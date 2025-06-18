@@ -42,6 +42,9 @@ user defined: <label>, genetic algorithm,
     output drives: <list_of_drive_labels>,
     fitness function: "<expression>",
     constraints function: "<expression>",
+    # Selection methods
+    selection_method: "<method>",  # "tournament", "roulette_wheel", "rank_based", "sus", "elitism"
+    tournament_size: <size>,
     # GA specific parameters
     population size: <size>,
     generations: <number>,
@@ -66,6 +69,8 @@ user defined: <label>, genetic algorithm,
 | `output drives` | Drive labels providing simulation output values |
 | `fitness function` | Mathematical expression defining the objective function |
 | `constraints function` | Expression defining constraints on parameters |
+| `selection_method` | Selection algorithm: "tournament", "roulette_wheel", "rank_based", "sus", "elitism" |
+| `tournament_size` | Number of individuals in tournament selection (default: 3) |
 | `population size` | Number of individuals in each generation |
 | `generations` | Maximum number of generations to run |
 | `mutation rate` | Probability of mutation during reproduction |
@@ -87,6 +92,8 @@ user defined: 100, genetic algorithm,
     output drives: 3,
     fitness function: "abs(y_target - y_actual)",
     constraints function: "k > 1000 && k < 10000 && c > 10 && c < 100",
+    selection_method: "tournament",
+    tournament_size: 3,
     population size: 50,
     generations: 100,
     mutation rate: 0.1,

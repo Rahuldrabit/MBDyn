@@ -19,7 +19,7 @@ struct Individual {
 // -------------------------------------------------------------
 //  Rank‑based selection operator (linear or exponential)
 // -------------------------------------------------------------
-/**
+/*
  * @tparam RNG  Uniform random bit generator (e.g. std::mt19937_64)
  * @param population         Vector of Individuals
  * @param numSelections      How many parents to pick

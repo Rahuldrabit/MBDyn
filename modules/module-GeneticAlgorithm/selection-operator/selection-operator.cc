@@ -1,13 +1,8 @@
+#include "selection-operator.h"
 #include <iostream>
 #include <vector>
 #include <algorithm>
 #include <cstdlib>
-
-// Individual structure for GA population
-struct Individual {
-    std::vector<double> genes;
-    double fitness;
-};
 
 // Tournament selection operator
 std::vector<unsigned int> TournamentSelection(std::vector<Individual>& Population, unsigned int TournamentSize) {
@@ -50,7 +45,7 @@ std::vector<unsigned int> TournamentSelection(std::vector<Individual>& Populatio
 }
 
 // Roulette wheel selection operator
-std::vector<unsigned int> RouletteWheelSelection(std::vector<Individual>& Population, unsigned int NumSelections = 1) {
+std::vector<unsigned int> RouletteWheelSelection(std::vector<Individual>& Population, unsigned int NumSelections) {
     std::vector<unsigned int> SelectedIndices;
     unsigned int PopulationSize = Population.size();
 
@@ -88,7 +83,7 @@ std::vector<unsigned int> RouletteWheelSelection(std::vector<Individual>& Popula
 }
 
 // Rank selection operator
-std::vector<unsigned int> RankSelection(std::vector<Individual>& Population, unsigned int NumSelections = 1) {
+std::vector<unsigned int> RankSelection(std::vector<Individual>& Population, unsigned int NumSelections) {
     std::vector<unsigned int> SelectedIndices;
     unsigned int PopulationSize = Population.size();
 

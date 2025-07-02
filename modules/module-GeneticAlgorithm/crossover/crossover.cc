@@ -5,6 +5,7 @@
 #include <queue>
 #include <stdexcept>
 #include <iostream>
+#include <climits>
 
 // ============================================================================
 // LOGGING SYSTEM IMPLEMENTATION
@@ -40,7 +41,7 @@ void CrossoverLogger::initialize(const std::string& filename, LogLevel level, bo
         // Get current file size
         log_file.seekp(0, std::ios::end);
         current_file_size = log_file.tellp();
-        log("CrossoverLogger", LogLevel::INFO, "Logging system initialized");
+        log(LogLevel::INFO, "Logging system initialized", "CrossoverLogger", __LINE__);
     }
 }
 

@@ -135,7 +135,7 @@ public:
 
 class OnePointCrossover : public CrossoverOperator {
 public:
-    OnePointCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    OnePointCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("OnePointCrossover", seed) {}
     
     std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
@@ -144,7 +144,7 @@ public:
 
 class TwoPointCrossover : public CrossoverOperator {
 public:
-    TwoPointCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    TwoPointCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("TwoPointCrossover", seed) {}
     
     std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
@@ -157,7 +157,7 @@ private:
     
 public:
     MultiPointCrossover(int points = 3, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), num_points(points) {}
+        : CrossoverOperator("MultiPointCrossover", seed), num_points(points) {}
     
     std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
@@ -170,7 +170,7 @@ private:
     
 public:
     UniformCrossover(double p = 0.5, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), probability(p) {}
+        : CrossoverOperator("UniformCrossover", seed), probability(p) {}
     
     std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
@@ -183,7 +183,7 @@ private:
     
 public:
     UniformKVectorCrossover(double p = 0.1, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), swap_probability(p) {}
+        : CrossoverOperator("UniformKVectorCrossover", seed), swap_probability(p) {}
     
     std::vector<BitString> crossover(const std::vector<BitString>& parents);
     std::vector<RealVector> crossover(const std::vector<RealVector>& parents);
@@ -200,7 +200,7 @@ private:
     
 public:
     LineRecombination(double p = 0.1, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), extension_factor(p) {}
+        : CrossoverOperator("LineRecombination", seed), extension_factor(p) {}
     
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
 };
@@ -211,7 +211,7 @@ private:
     
 public:
     IntermediateRecombination(double a = 0.5, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), alpha(a) {}
+        : CrossoverOperator("IntermediateRecombination", seed), alpha(a) {}
     
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
     RealVector singleArithmeticRecombination(const RealVector& parent1, const RealVector& parent2);
@@ -224,7 +224,7 @@ private:
     
 public:
     BlendCrossover(double a = 0.5, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), alpha(a) {}
+        : CrossoverOperator("BlendCrossover", seed), alpha(a) {}
     
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
 };
@@ -235,7 +235,7 @@ private:
     
 public:
     SimulatedBinaryCrossover(double eta = 2.0, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), eta_c(eta) {}
+        : CrossoverOperator("SimulatedBinaryCrossover", seed), eta_c(eta) {}
     
     std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
 };
@@ -246,21 +246,21 @@ public:
 
 class CutAndCrossfillCrossover : public CrossoverOperator {
 public:
-    CutAndCrossfillCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    CutAndCrossfillCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("CutAndCrossfillCrossover", seed) {}
     
     std::pair<Permutation, Permutation> crossover(const Permutation& parent1, const Permutation& parent2);
 };
 
 class PartiallyMappedCrossover : public CrossoverOperator {
 public:
-    PartiallyMappedCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    PartiallyMappedCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("PartiallyMappedCrossover", seed) {}
     
     std::pair<Permutation, Permutation> crossover(const Permutation& parent1, const Permutation& parent2);
 };
 
 class EdgeCrossover : public CrossoverOperator {
 public:
-    EdgeCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    EdgeCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("EdgeCrossover", seed) {}
     
     Permutation crossover(const Permutation& parent1, const Permutation& parent2);
     
@@ -270,14 +270,14 @@ private:
 
 class OrderCrossover : public CrossoverOperator {
 public:
-    OrderCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    OrderCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("OrderCrossover", seed) {}
     
     std::pair<Permutation, Permutation> crossover(const Permutation& parent1, const Permutation& parent2);
 };
 
 class CycleCrossover : public CrossoverOperator {
 public:
-    CycleCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    CycleCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("CycleCrossover", seed) {}
     
     std::pair<Permutation, Permutation> crossover(const Permutation& parent1, const Permutation& parent2);
     
@@ -291,7 +291,7 @@ private:
 
 class SubtreeCrossover : public CrossoverOperator {
 public:
-    SubtreeCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    SubtreeCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("SubtreeCrossover", seed) {}
     
     std::pair<TreeNode*, TreeNode*> crossover(const TreeNode* parent1, const TreeNode* parent2);
     
@@ -307,7 +307,7 @@ private:
 
 class DiploidRecombination : public CrossoverOperator {
 public:
-    DiploidRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    DiploidRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator("DiploidRecombination", seed) {}
     
     using DiploidChromosome = std::pair<BitString, BitString>;
     DiploidChromosome crossover(const DiploidChromosome& parent1, const DiploidChromosome& parent2);
@@ -318,7 +318,7 @@ private:
 
 class CrossoverTemplate : public CrossoverOperator {
 public:
-    CrossoverTemplate(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    CrossoverTemplate(unsigned seed = std::random_device{}()) : CrossoverOperator("CrossoverTemplate", seed) {}
     
     struct TemplatedChromosome {
         BitString chromosome;
@@ -331,21 +331,21 @@ public:
 
 class NeuralNetworkWeightCrossover : public CrossoverOperator {
 public:
-    NeuralNetworkWeightCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    NeuralNetworkWeightCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("NeuralNetworkWeightCrossover", seed) {}
     
     NeuralNetwork crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2);
 };
 
 class NeuralNetworkTopologyCrossover : public CrossoverOperator {
 public:
-    NeuralNetworkTopologyCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    NeuralNetworkTopologyCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("NeuralNetworkTopologyCrossover", seed) {}
     
     std::pair<NeuralNetwork, NeuralNetwork> crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2);
 };
 
 class RulesetCrossover : public CrossoverOperator {
 public:
-    RulesetCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    RulesetCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("RulesetCrossover", seed) {}
     
     std::pair<RuleSet, RuleSet> uniformCrossover(const RuleSet& parent1, const RuleSet& parent2);
     std::pair<RuleSet, RuleSet> variableLengthCrossover(const RuleSet& parent1, const RuleSet& parent2);
@@ -356,7 +356,7 @@ private:
     std::map<std::pair<int, int>, double> rule_clusters; // co-adaptation scores
     
 public:
-    ClusteredCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    ClusteredCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("ClusteredCrossover", seed) {}
     
     void updateClusterInfo(const std::vector<std::pair<int, int>>& rule_pairs, 
                           const std::vector<double>& performance_scores);
@@ -365,7 +365,7 @@ public:
 
 class Segregation : public CrossoverOperator {
 public:
-    Segregation(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    Segregation(unsigned seed = std::random_device{}()) : CrossoverOperator("Segregation", seed) {}
     
     using MultiChromosome = std::vector<BitString>;
     BitString formGamete(const MultiChromosome& parent);
@@ -379,7 +379,7 @@ private:
 public:
     IntelligentCrossover(std::function<double(const BitString&)> fitness_fn, 
                         unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), fitness_function(fitness_fn) {}
+        : CrossoverOperator("IntelligentCrossover", seed), fitness_function(fitness_fn) {}
     
     std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
 };
@@ -391,7 +391,7 @@ private:
 public:
     DistancePreservingCrossover(const std::vector<std::vector<double>>& distances, 
                                unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), distance_matrix(distances) {}
+        : CrossoverOperator("DistancePreservingCrossover", seed), distance_matrix(distances) {}
     
     Permutation crossover(const Permutation& parent1, const Permutation& parent2);
     
@@ -406,14 +406,14 @@ private:
 
 class DiscreteRecombination : public CrossoverOperator {
 public:
-    DiscreteRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    DiscreteRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator("DiscreteRecombination", seed) {}
     
     RealVector crossover(const RealVector& parent1, const RealVector& parent2);
 };
 
 class GlobalRecombination : public CrossoverOperator {
 public:
-    GlobalRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator(seed) {}
+    GlobalRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator("GlobalRecombination", seed) {}
     
     RealVector crossover(const std::vector<RealVector>& population);
 };
@@ -428,7 +428,7 @@ private:
     
 public:
     DifferentialEvolutionCrossover(double crossover_rate = 0.9, unsigned seed = std::random_device{}()) 
-        : CrossoverOperator(seed), CR(crossover_rate) {}
+        : CrossoverOperator("DifferentialEvolutionCrossover", seed), CR(crossover_rate) {}
     
     RealVector crossover(const RealVector& target, const RealVector& mutant);
 };

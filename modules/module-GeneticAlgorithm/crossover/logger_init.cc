@@ -41,4 +41,5 @@ namespace CrossoverLogging {
         // This could be extended to log system-wide statistics
         LOG_INFO("Logging system active and operational");
     }
-}
+    
+} // namespace CrossoverLogging

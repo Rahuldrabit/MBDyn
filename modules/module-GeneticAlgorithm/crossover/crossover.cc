@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <climits>
+#include <cstdio>  // for std::rename
 
 // ============================================================================
 // LOGGING SYSTEM IMPLEMENTATION
@@ -155,9 +156,9 @@ CrossoverLogger::~CrossoverLogger() {
 // ============================================================================
 
 void CrossoverOperator::logOperation(const std::string& operation, bool success) const {
-    operation_count++;
+    const_cast<size_t&>(operation_count)++;
     if (!success) {
-        error_count++;
+        const_cast<size_t&>(error_count)++;
     }
     
     std::stringstream msg;
@@ -172,7 +173,7 @@ void CrossoverOperator::logOperation(const std::string& operation, bool success)
 }
 
 void CrossoverOperator::logError(const std::string& error_msg) const {
-    error_count++;
+    const_cast<size_t&>(error_count)++;
     std::stringstream msg;
     msg << operator_name << " ERROR: " << error_msg;
     LOG_ERROR(msg.str());
@@ -399,7 +400,7 @@ std::pair<BitString, BitString> MultiPointCrossover::crossover(const BitString& 
         std::vector<size_t> points;
         std::uniform_int_distribution<size_t> dist(1, length - 1);
         
-        std::unordered_set<size_t> unique_points;
+        std::set<size_t> unique_points;  // Use set instead of unordered_set for deterministic ordering
         int attempts = 0;
         const int max_attempts = length * 2; // Prevent infinite loop
         
@@ -413,7 +414,7 @@ std::pair<BitString, BitString> MultiPointCrossover::crossover(const BitString& 
         }
         
         points.assign(unique_points.begin(), unique_points.end());
-        std::sort(points.begin(), points.end());
+        // points are already sorted since we used std::set
         
         LOG_DEBUG("MultiPointCrossover: Selected " + std::to_string(points.size()) + " crossover points");
         
@@ -458,13 +459,16 @@ std::pair<RealVector, RealVector> MultiPointCrossover::crossover(const RealVecto
     std::vector<size_t> points;
     std::uniform_int_distribution<size_t> dist(1, length - 1);
     
-    std::unordered_set<size_t> unique_points;
-    while (unique_points.size() < static_cast<size_t>(actual_points)) {
+    std::set<size_t> unique_points;  // Use set instead of unordered_set
+    int attempts = 0;
+    const int max_attempts = length * 2;
+    
+    while (unique_points.size() < static_cast<size_t>(actual_points) && attempts < max_attempts) {
         unique_points.insert(dist(rng));
+        attempts++;
     }
     
     points.assign(unique_points.begin(), unique_points.end());
-    std::sort(points.begin(), points.end());
     
     RealVector child1 = parent1;
     RealVector child2 = parent2;
@@ -499,13 +503,16 @@ std::pair<IntVector, IntVector> MultiPointCrossover::crossover(const IntVector& 
     std::vector<size_t> points;
     std::uniform_int_distribution<size_t> dist(1, length - 1);
     
-    std::unordered_set<size_t> unique_points;
-    while (unique_points.size() < static_cast<size_t>(actual_points)) {
+    std::set<size_t> unique_points;  // Use set instead of unordered_set
+    int attempts = 0;
+    const int max_attempts = length * 2;
+    
+    while (unique_points.size() < static_cast<size_t>(actual_points) && attempts < max_attempts) {
         unique_points.insert(dist(rng));
+        attempts++;
     }
     
     points.assign(unique_points.begin(), unique_points.end());
-    std::sort(points.begin(), points.end());
     
     IntVector child1 = parent1;
     IntVector child2 = parent2;
@@ -1316,25 +1323,6 @@ std::set<std::pair<int, int>> DistancePreservingCrossover::getCommonEdges(const 
                          std::inserter(common, common.begin()));
     
     return common;
-}
-
-int DistancePreservingCrossover::findNearestUnvisited(int current, const std::set<int>& unvisited) {
-    if (unvisited.empty()) return -1;
-    
-    int nearest = *unvisited.begin();
-    double min_distance = std::numeric_limits<double>::infinity();
-    
-    for (int city : unvisited) {
-        if (current < distance_matrix.size() && city < distance_matrix[current].size()) {
-            double dist = distance_matrix[current][city];
-            if (dist < min_distance) {
-                min_distance = dist;
-                nearest = city;
-            }
-        }
-    }
-    
-    return nearest;
 }
 
 Permutation DistancePreservingCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {

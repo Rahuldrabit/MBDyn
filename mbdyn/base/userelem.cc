@@ -49,6 +49,7 @@
 #include "module-ballbearing_contact/module-ballbearing_contact.h"
 #include "module-uni_in_plane/module-uni_in_plane.h"
 #include "module-triangular_contact/module-triangular_contact.h"
+#include "module-GeneticAlgorithm/module-GeneticAlgorithm.h"  // Add this line
 
 #include "module-cyclocopter/module-cyclocopter.h"
 #include "module-hfelem/module-hfelem.h"
@@ -121,20 +122,22 @@ static unsigned done = 0;
 void
 InitUDE(void)
 {
-	if (::done++ > 0) {
-		return;
-	}
+    if (::done++ > 0) {
+        return;
+    }
 
-	bool b; (void)b; //silence set but not used warning: b used only wid -DDEBUG
+    bool b; (void)b; //silence set but not used warning: b used only wid -DDEBUG
 
-	b = SetUDE("loadable", new LoadableElemRead);
-	ASSERT(b != false);
+    b = SetUDE("loadable", new LoadableElemRead);
+    ASSERT(b != false);
 #ifdef STATIC_MODULES
-	b = wheel2_set();
-	ASSERT(b != false);
-	b = asynchronous_machine_set();
-	ASSERT(b != false);
-	b = inline_friction_set();
+    b = wheel2_set();
+    ASSERT(b != false);
+    b = asynchronous_machine_set();
+    ASSERT(b != false);
+    b = genetic_algorithm_set();  // Add this line
+    ASSERT(b != false);
+    b = inline_friction_set();
         ASSERT(b != false);
         b = multi_step_drive_set();
         ASSERT(b != false);

@@ -141,7 +141,7 @@ extern std::mutex mbdyn_lock_cout;
 
 #define pedantic_cerr(arg) \
 	do { \
-		if (pedantic_err) { \
+		if (pedantit config --global user.email "you@example.com"ic_err) { \
 			MBDYN_LOCK_COUT(); \
 			std::cerr << arg; \
 		} \

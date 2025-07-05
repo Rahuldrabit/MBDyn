@@ -1,0 +1,39 @@
+# Genetic Algorithm Optimization Configuration
+
+population:
+  size: 1000
+
+inputs:
+  number: 5
+  elements:
+    - id: 101
+      joint_type: direct
+      private_data:
+        type: string
+        value: "M[2]"
+    - id: 102
+      joint_type: direct
+      private_data:
+        type: string
+        value: "M[2]"
+    - id: 103
+      joint_type: direct
+      private_data:
+        type: string
+        value: "M[2]"
+    - id: 104
+      joint_type: direct
+      private_data:
+        type: string
+        value: "M[2]"
+    - id: 105
+      joint_type: direct
+      private_data:
+        type: string
+        value: "M[2]"
+
+fitness_function:
+  type: composite # options: multi-objective, simulation-based, composite/hierarchical
+
+constraints_function:
+  library: "libgaconstraints.so"

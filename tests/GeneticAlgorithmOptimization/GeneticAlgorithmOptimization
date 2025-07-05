@@ -1,0 +1,170 @@
+# MBDyn Genetic Algorithm Optimization Test File
+# Comprehensive GA implementation with multiple operators and methods
+
+user defined: structural_optimization_ga, genetic algorithm,
+    inputs: 3,
+    elements: 1001, 1002, 1003,
+    element types: "beam", "mass", "damper",
+    data names: "beam_stiffness", "damping_coefficient", "mass_value",
+    outputs: 2,
+    output drives: "displacement_drive", "force_drive",
+    fitness function: "minimize(abs(target_displacement - actual_displacement) + 0.1*mass_penalty)",
+    constraints function: "beam_stiffness > 1.0 && beam_stiffness < 100.0 && mass_value > 0.1",
+    
+    # Selection Operators
+    selection_method: "tournament",  # options: "roulette_wheel", "tournament", "rank_based", "sus", "elitism"
+    tournament_size: 3,
+    elitism_count: 2,
+    selection_pressure: 1.5,
+    
+    # Crossover Operators  
+    crossover_method: "two_point",  # options: "single_point", "two_point", "uniform"
+    crossover_rate: 0.8,
+    uniform_crossover_prob: 0.5,
+    
+    # Mutation Operators
+    mutation_method: "gaussian",  # options: "bit_flip", "gaussian", "random_resetting", "swap", "inversion"
+    mutation_rate: 0.1,
+    gaussian_sigma: 0.1,
+    mutation_strength: 0.05,
+    
+    # Hill Climbing Methods
+    hill_climbing_enabled: true,
+    hill_climbing_method: "steepest_ascent",  # options: "steepest_ascent", "stochastic", "random_restart"
+    hill_climbing_frequency: 10,  # apply every N generations
+    restart_probability: 0.1,
+    local_search_iterations: 5,
+    
+    # GA Core Parameters
+    population size: 20,
+    generations: 50,
+    convergence_tolerance: 1e-4,
+    max_stagnation: 10,
+    
+    # Population vs Single-State Methods
+    optimization_mode: "population_based",  # options: "population_based", "single_state"
+    single_state_restarts: 5,
+    population_diversity_threshold: 0.01,
+    
+    # Optional parameters
+    initial population: "initial_population.dat",
+    output results: "optimization_results.out",
+    statistics_file: "ga_statistics.log",
+    convergence_plot: "convergence_history.dat",
+    diversity_tracking: true,
+    seed: 42
+
+# Alternative configuration for single-state hill climbing
+user defined: structural_hill_climbing, genetic algorithm,
+    inputs: 2, 
+    elements: 2001, 2002,
+    element types: "beam", "mass",
+    data names: "k_beam", "m_mass",
+    outputs: 1,
+    output drives: "response_drive",
+    fitness function: "minimize(response_error^2)",
+    constraints function: "k_beam > 0.5 && m_mass > 0.05",
+    
+    # Single-state hill climbing configuration
+    optimization_mode: "single_state",
+    hill_climbing_method: "random_restart",
+    mutation_method: "gaussian",
+    mutation_rate: 0.2,
+    gaussian_sigma: 0.05,
+    
+    # Single-state parameters
+    population size: 1,
+    generations: 100,
+    single_state_restarts: 10,
+    restart_threshold: 20,  # restart after N iterations without improvement
+    
+    # Output configuration
+    output results: "hill_climbing_results.out",
+    trace_file: "hill_climbing_trace.log"
+
+# Multi-objective optimization example
+user defined: multi_objective_structural, genetic algorithm,
+    inputs: 4,
+    elements: 3001, 3002, 3003, 3004,
+    element types: "beam", "beam", "damper", "mass", 
+    data names: "k1", "k2", "c_damping", "total_mass",
+    outputs: 3,
+    output drives: "displacement_1", "displacement_2", "force_reaction",
+    fitness function: "pareto_front(weight_minimization, stiffness_maximization, damping_optimization)",
+    constraints function: "k1 > 0 && k2 > 0 && c_damping > 0 && total_mass > 0",
+    
+    # Advanced GA configuration
+    selection_method: "rank_based",
+    crossover_method: "uniform", 
+    mutation_method: "swap",
+    crossover_rate: 0.9,
+    mutation_rate: 0.15,
+    
+    # Multi-objective specific
+    pareto_front_size: 10,
+    crowding_distance: true,
+    non_dominated_sorting: true,
+    
+    # Hybrid approach: Population + Hill Climbing
+    optimization_mode: "population_based",
+    hill_climbing_enabled: true,
+    hill_climbing_method: "stochastic",
+    hill_climbing_frequency: 5,
+    
+    population size: 50,
+    generations: 75,
+    elite count: 5,
+    
+    output results: "pareto_front_results.out",
+    pareto_plot: "pareto_front.dat"
+
+# Test configuration for all crossover methods
+user defined: crossover_comparison, genetic algorithm,
+    inputs: 3,
+    elements: 4001, 4002, 4003,
+    element types: "beam", "beam", "joint",
+    data names: "beam_stiffness", "beam_length", "joint_stiffness", 
+    outputs: 2,
+    output drives: "tip_displacement", "max_stress",
+    fitness function: "minimize(displacement_error + stress_penalty)",
+    constraints function: "all_positive_values",
+    
+    # Crossover method testing
+    crossover_method: "adaptive",  # cycles through single_point, two_point, uniform
+    adaptive_crossover: true,
+    crossover_adaptation_frequency: 10,
+    
+    # Selection and mutation
+    selection_method: "sus",  # Stochastic Universal Sampling
+    mutation_method: "inversion",
+    
+    population size: 30,
+    generations: 40,
+    
+    # Comprehensive output
+    output results: "crossover_comparison.out",
+    method_statistics: "crossover_stats.log",
+    performance_metrics: "crossover_performance.dat"
+
+user defined: 1000, genetic algorithm optimization,
+inputs number, 5,
+element, 101, joint, string, "M[2]", direct,
+element, 102, joint, string, "M[2]", direct,
+element, 103, joint, string, "M[2]", direct,
+element, 104, joint, string, "M[2]", direct,
+element, 105, joint, string, "M[2]", direct,
+fitness function: "Multi-Objective or Simulation-Based or Composite/Hierarchical",
+constraints function: "libgaconstraints.so",
+    
+    # Selection method configuration
+    selection_method: "tournament",
+    tournament_size: 3,
+    
+    # Basic GA parameters
+    population size: 20,
+    generations: 30,
+    mutation_rate: 0.1,
+    crossover_rate: 0.8,
+    
+    # Output configuration
+    output results: "optimization_1000.out"

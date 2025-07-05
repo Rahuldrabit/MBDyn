@@ -1273,7 +1273,6 @@ std::pair<BitString, BitString> IntelligentCrossover::crossover(const BitString&
     
     // Try different crossover points and select best
     double best_fitness = -std::numeric_limits<double>::infinity();
-    size_t best_point = 1;
     
     for (size_t point = 1; point < parent1.size(); ++point) {
         BitString temp1 = parent1;
@@ -1287,7 +1286,6 @@ std::pair<BitString, BitString> IntelligentCrossover::crossover(const BitString&
         double fitness = fitness_function(temp1) + fitness_function(temp2);
         if (fitness > best_fitness) {
             best_fitness = fitness;
-            best_point = point;
             child1 = temp1;
             child2 = temp2;
         }
@@ -1323,6 +1321,34 @@ std::set<std::pair<int, int>> DistancePreservingCrossover::getCommonEdges(const 
                          std::inserter(common, common.begin()));
     
     return common;
+}
+
+int DistancePreservingCrossover::findNearestUnvisited(int current, const std::set<int>& unvisited) {
+    if (unvisited.empty()) {
+        return -1;
+    }
+    
+    double minDistance = std::numeric_limits<double>::max();
+    int nearest = -1;
+    
+    // Check bounds for distance matrix
+    if (current < 0 || static_cast<size_t>(current) >= distance_matrix.size()) {
+        // If distance matrix is not available or invalid, return first unvisited
+        return *unvisited.begin();
+    }
+    
+    for (int city : unvisited) {
+        if (city >= 0 && static_cast<size_t>(city) < distance_matrix[current].size()) {
+            double dist = distance_matrix[current][city];
+            if (dist < minDistance) {
+                minDistance = dist;
+                nearest = city;
+            }
+        }
+    }
+    
+    // If no valid distance found, return first unvisited
+    return (nearest == -1) ? *unvisited.begin() : nearest;
 }
 
 Permutation DistancePreservingCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {

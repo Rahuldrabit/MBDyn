@@ -799,7 +799,7 @@ std::map<int, std::set<int>> EdgeCrossover::buildEdgeTable(const Permutation& pa
     return edge_table;
 }
 
-Permutation EdgeCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {
+Permutation EdgeCrossover::performCrossover(const Permutation& parent1, const Permutation& parent2) {
     if (parent1.size() != parent2.size()) {
         throw std::invalid_argument("Parents must have the same length");
     }
@@ -1088,67 +1088,6 @@ CrossoverTemplate::crossover(const TemplatedChromosome& parent1, const Templated
     return {child1, child2};
 }
 
-// ============================================================================
-// NEURAL NETWORK WEIGHT CROSSOVER
-// ============================================================================
-
-NeuralNetwork NeuralNetworkWeightCrossover::crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2) {
-    if (parent1.weights.size() != parent2.weights.size()) {
-        throw std::invalid_argument("Neural networks must have same structure");
-    }
-    
-    NeuralNetwork child;
-    child.weights.resize(parent1.weights.size());
-    child.connections = parent1.connections; // Copy connection structure
-    
-    std::uniform_int_distribution<int> dist(0, 1);
-    
-    for (size_t layer = 0; layer < parent1.weights.size(); ++layer) {
-        if (parent1.weights[layer].size() != parent2.weights[layer].size()) {
-            throw std::invalid_argument("Layers must have same size");
-        }
-        
-        child.weights[layer].resize(parent1.weights[layer].size());
-        
-        for (size_t unit = 0; unit < parent1.weights[layer].size(); ++unit) {
-            // Randomly choose parent for this unit's weights
-            if (dist(rng) == 0) {
-                child.weights[layer][unit] = parent1.weights[layer][unit];
-            } else {
-                child.weights[layer][unit] = parent2.weights[layer][unit];
-            }
-        }
-    }
-    
-    return child;
-}
-
-// ============================================================================
-// NEURAL NETWORK TOPOLOGY CROSSOVER
-// ============================================================================
-
-std::pair<NeuralNetwork, NeuralNetwork> NeuralNetworkTopologyCrossover::crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2) {
-    if (parent1.connections.size() != parent2.connections.size()) {
-        throw std::invalid_argument("Neural networks must have same structure");
-    }
-    
-    NeuralNetwork child1 = parent1;
-    NeuralNetwork child2 = parent2;
-    
-    if (!parent1.connections.empty()) {
-        std::uniform_int_distribution<size_t> dist(0, parent1.connections.size() - 1);
-        size_t row_to_swap = dist(rng);
-        
-        std::swap(child1.connections[row_to_swap], child2.connections[row_to_swap]);
-        
-        // Also swap corresponding weights if they exist
-        if (row_to_swap < child1.weights.size() && row_to_swap < child2.weights.size()) {
-            std::swap(child1.weights[row_to_swap], child2.weights[row_to_swap]);
-        }
-    }
-    
-    return {child1, child2};
-}
 
 // ============================================================================
 // RULESET CROSSOVER
@@ -1351,7 +1290,7 @@ int DistancePreservingCrossover::findNearestUnvisited(int current, const std::se
     return (nearest == -1) ? *unvisited.begin() : nearest;
 }
 
-Permutation DistancePreservingCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {
+Permutation DistancePreservingCrossover::performCrossover(const Permutation& parent1, const Permutation& parent2) {
     auto common_edges = getCommonEdges(parent1, parent2);
     
     Permutation child;
@@ -1381,7 +1320,7 @@ Permutation DistancePreservingCrossover::crossover(const Permutation& parent1, c
 // EVOLUTION STRATEGIES RECOMBINATION
 // ============================================================================
 
-RealVector DiscreteRecombination::crossover(const RealVector& parent1, const RealVector& parent2) {
+RealVector DiscreteRecombination::performCrossover(const RealVector& parent1, const RealVector& parent2) {
     if (parent1.size() != parent2.size()) {
         throw std::invalid_argument("Parents must have the same length");
     }
@@ -1402,7 +1341,7 @@ RealVector DiscreteRecombination::crossover(const RealVector& parent1, const Rea
     return child;
 }
 
-RealVector GlobalRecombination::crossover(const std::vector<RealVector>& population) {
+RealVector GlobalRecombination::performCrossover(const std::vector<RealVector>& population) {
     if (population.empty()) return {};
     
     size_t length = population[0].size();
@@ -1423,7 +1362,7 @@ RealVector GlobalRecombination::crossover(const std::vector<RealVector>& populat
 // DIFFERENTIAL EVOLUTION CROSSOVER
 // ============================================================================
 
-RealVector DifferentialEvolutionCrossover::crossover(const RealVector& target, const RealVector& mutant) {
+RealVector DifferentialEvolutionCrossover::performCrossover(const RealVector& target, const RealVector& mutant) {
     if (target.size() != mutant.size()) {
         throw std::invalid_argument("Target and mutant must have the same length");
     }

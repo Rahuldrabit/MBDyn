@@ -7,6 +7,7 @@
 #include <fstream>
 #include <chrono>
 #include <cmath>
+#include <memory>
 
 // Include our custom headers
 #include "simple-GA-Test/fitness-function.h"
@@ -30,10 +31,34 @@ struct GAConfig {
     // Function selection
     enum FunctionType { RASTRIGIN, ACKLEY, SCHWEFEL } function = RASTRIGIN;
     
+    // Operator selections
+    std::string crossoverType = "one_point";
+    std::string mutationType = "gaussian";
+    std::string selectionType = "tournament";
+    
     // Output settings
     bool verbose = true;
     std::string outputFile = "ga_results.txt";
 };
+
+// Factory functions for creating operators
+std::unique_ptr<CrossoverOperator> createCrossoverOperator(const std::string& type) {
+    if (type == "one_point") {
+        return std::make_unique<OnePointCrossover>();
+    } else if (type == "two_point") {
+        return std::make_unique<TwoPointCrossover>();
+    } else if (type == "uniform") {
+        return std::make_unique<UniformCrossover>();
+    } else if (type == "multi_point") {
+        return std::make_unique<MultiPointCrossover>(3);
+    }
+    // Default to one point
+    return std::make_unique<OnePointCrossover>();
+}
+
+std::unique_ptr<MutationOperators> createMutationOperator() {
+    return std::make_unique<MutationOperators>();
+}
 
 // Individual representation for real-valued GA
 struct GAIndividual {
@@ -70,9 +95,9 @@ private:
     std::vector<double> avgFitnessHistory;
     GAIndividual bestIndividual;
     
-    // Operators
+    // Operators - now using dynamic selection
     std::unique_ptr<MutationOperators> mutationOp;
-    std::unique_ptr<OnePointCrossover> crossoverOp;
+    std::unique_ptr<CrossoverOperator> crossoverOp;
     
 public:
     SimpleGA(const GAConfig& cfg) : config(cfg), 
@@ -81,9 +106,9 @@ public:
                                    intDist(0, cfg.populationSize - 1),
                                    bestIndividual(cfg.chromosomeLength) {
         
-        // Initialize operators
-        mutationOp = std::make_unique<MutationOperators>();
-        crossoverOp = std::make_unique<OnePointCrossover>();
+        // Initialize operators based on config
+        mutationOp = createMutationOperator();
+        crossoverOp = createCrossoverOperator(config.crossoverType);
         
         // Set function-specific bounds
         switch(config.function) {
@@ -102,6 +127,13 @@ public:
         }
         
         realDist = std::uniform_real_distribution<double>(config.lowerBound, config.upperBound);
+        
+        if (config.verbose) {
+            std::cout << "GA initialized with:" << std::endl;
+            std::cout << "- Crossover: " << config.crossoverType << std::endl;
+            std::cout << "- Mutation: " << config.mutationType << std::endl;
+            std::cout << "- Selection: " << config.selectionType << std::endl;
+        }
     }
     
     // Initialize population
@@ -142,27 +174,13 @@ public:
         }
     }
     
-    // Tournament selection
-    GAIndividual tournamentSelection() {
-        const int tournamentSize = 3;
-        GAIndividual best = population[intDist(rng)];
-        
-        for (int i = 1; i < tournamentSize; ++i) {
-            GAIndividual candidate = population[intDist(rng)];
-            if (candidate.fitness > best.fitness) {
-                best = candidate;
-            }
-        }
-        
-        return best;
-    }
-    
-    // Crossover operation
+    // Crossover operation using dynamic operator
     std::pair<GAIndividual, GAIndividual> crossover(const GAIndividual& parent1, 
                                                    const GAIndividual& parent2) {
         std::uniform_real_distribution<double> prob(0.0, 1.0);
         
         if (prob(rng) < config.crossoverRate) {
+            // Use the dynamically selected crossover operator
             auto result = crossoverOp->crossover(parent1.chromosome, parent2.chromosome);
             
             GAIndividual child1(config.chromosomeLength);
@@ -188,15 +206,66 @@ public:
         }
     }
     
-    // Mutation operation
+    // Mutation operation using dynamic operator
     void mutate(GAIndividual& individual) {
         std::vector<double> bounds_lower(config.chromosomeLength, config.lowerBound);
         std::vector<double> bounds_upper(config.chromosomeLength, config.upperBound);
         
-        mutationOp->gaussianMutation(individual.chromosome, config.mutationRate, 
-                                   0.1, bounds_lower, bounds_upper);
+        // Use the selected mutation type
+        if (config.mutationType == "gaussian") {
+            mutationOp->gaussianMutation(individual.chromosome, config.mutationRate, 
+                                       0.1, bounds_lower, bounds_upper);
+        } else if (config.mutationType == "uniform") {
+            mutationOp->uniformMutation(individual.chromosome, config.mutationRate, 
+                                      bounds_lower, bounds_upper);
+        } else {
+            // Default to gaussian
+            mutationOp->gaussianMutation(individual.chromosome, config.mutationRate, 
+                                       0.1, bounds_lower, bounds_upper);
+        }
         
         individual.fitness = evaluateFitness(individual.chromosome);
+    }
+    
+    // Tournament selection or roulette wheel selection
+    GAIndividual selectParent() {
+        if (config.selectionType == "tournament") {
+            return selectParentUsingOperators();
+        } else if (config.selectionType == "roulette") {
+            return selectParentUsingOperators();
+        } else {
+            // Default to tournament
+            return selectParentUsingOperators();
+        }
+    }
+    
+    // Use selection operators from the selection-operator module
+    GAIndividual selectParentUsingOperators() {
+        // Convert population to Individual format
+        std::vector<Individual> individuals;
+        for (const auto& ind : population) {
+            individuals.push_back(ind.toIndividual());
+        }
+        
+        std::vector<unsigned int> selectedIndices;
+        
+        if (config.selectionType == "tournament") {
+            selectedIndices = TournamentSelection(individuals, 3); // Tournament size 3
+        } else if (config.selectionType == "roulette") {
+            selectedIndices = RouletteWheelSelection(individuals, 1);
+        } else {
+            // Default to tournament
+            selectedIndices = TournamentSelection(individuals, 3);
+        }
+        
+        // Return the selected individual
+        if (!selectedIndices.empty()) {
+            return population[selectedIndices[0]];
+        } else {
+            // Fallback to random selection
+            std::uniform_int_distribution<int> dist(0, population.size() - 1);
+            return population[dist(rng)];
+        }
     }
     
     // Main GA evolution loop
@@ -217,22 +286,24 @@ public:
             std::vector<GAIndividual> newPopulation;
             newPopulation.reserve(config.populationSize);
             
-            // Elitism - keep best individuals
+            // Elitism - keep best individuals using ElitismSelection operator
             int numElites = static_cast<int>(config.populationSize * config.eliteRatio);
-            std::vector<GAIndividual> sortedPop = population;
-            std::sort(sortedPop.begin(), sortedPop.end(),
-                [](const GAIndividual& a, const GAIndividual& b) {
-                    return a.fitness > b.fitness;
-                });
-            
-            for (int i = 0; i < numElites; ++i) {
-                newPopulation.push_back(sortedPop[i]);
+            if (numElites > 0) {
+                // Convert population to Individual format
+                std::vector<Individual> individuals;
+                for (const auto& ind : population) {
+                    individuals.push_back(ind.toIndividual());
+                }
+                std::vector<unsigned int> eliteIndices = ElitismSelection(individuals, numElites);
+                for (unsigned int idx : eliteIndices) {
+                    newPopulation.push_back(GAIndividual::fromIndividual(individuals[idx]));
+                }
             }
             
-            // Generate offspring
-            while (newPopulation.size() < config.populationSize) {
-                GAIndividual parent1 = tournamentSelection();
-                GAIndividual parent2 = tournamentSelection();
+            // Generate offspring using selected operators
+            while (newPopulation.size() < static_cast<size_t>(config.populationSize)) {
+                GAIndividual parent1 = selectParent();
+                GAIndividual parent2 = selectParent();
                 
                 auto children = crossover(parent1, parent2);
                 
@@ -240,7 +311,7 @@ public:
                 mutate(children.second);
                 
                 newPopulation.push_back(children.first);
-                if (newPopulation.size() < config.populationSize) {
+                if (newPopulation.size() < static_cast<size_t>(config.populationSize)) {
                     newPopulation.push_back(children.second);
                 }
             }
@@ -267,7 +338,7 @@ public:
     }
     
     // Update statistics
-    void updateStatistics(int generation) {
+    void updateStatistics(int /* generation */) {
         double totalFitness = 0.0;
         double maxFitness = -std::numeric_limits<double>::infinity();
         GAIndividual* currentBest = nullptr;
@@ -336,10 +407,13 @@ public:
 };
 
 // Test function for running GA on all three functions
-void runGATests() {
+void runGATests(const std::string& crossoverType, const std::string& mutationType, 
+               const std::string& selectionType) {
     std::cout << "=== GENETIC ALGORITHM TEST SUITE ===" << std::endl;
     std::cout << "Testing GA on benchmark optimization functions" << std::endl;
-    std::cout << "Population: 50, Generations: 50, Variables: 10" << std::endl << std::endl;
+    std::cout << "Population: 50, Generations: 50, Variables: 10" << std::endl;
+    std::cout << "Crossover: " << crossoverType << ", Mutation: " << mutationType 
+              << ", Selection: " << selectionType << std::endl << std::endl;
     
     // Test configurations for each function
     std::vector<std::pair<GAConfig::FunctionType, std::string>> functions = {
@@ -355,7 +429,10 @@ void runGATests() {
         
         GAConfig config;
         config.function = funcType;
-        config.outputFile = "ga_" + funcName + "_results.txt";
+        config.crossoverType = crossoverType;
+        config.mutationType = mutationType;
+        config.selectionType = selectionType;
+        config.outputFile = "ga_" + funcName + "_" + crossoverType + "_" + mutationType + "_" + selectionType + "_results.txt";
         config.verbose = true;
         
         SimpleGA ga(config);
@@ -376,8 +453,46 @@ void runGATests() {
 
 // Main function for testing
 int main() {
+    std::string crossoverType, mutationType, selectionType;
+
+    std::cout << "=== SIMPLE GENETIC ALGORITHM PIPELINE ===" << std::endl;
+    
+    // input crossover type
+    std::cout << "Enter Crossover (one_point, two_point, uniform, multi_point) type: ";
+    std::getline(std::cin, crossoverType);
+
+    if (crossoverType == "one_point" || crossoverType == "two_point" || 
+        crossoverType == "uniform" || crossoverType == "multi_point") {
+        std::cout << "Using " << crossoverType << " Crossover" << std::endl;
+    } else {
+        std::cerr << "Invalid crossover type. Defaulting to One Point Crossover." << std::endl;
+        crossoverType = "one_point";
+    }
+
+    // input mutation type
+    std::cout << "Enter Mutation (gaussian, uniform) type: ";
+    std::getline(std::cin, mutationType);
+
+    if (mutationType == "gaussian" || mutationType == "uniform") {
+        std::cout << "Using " << mutationType << " Mutation" << std::endl;
+    } else {
+        std::cerr << "Invalid mutation type. Defaulting to Gaussian Mutation." << std::endl;
+        mutationType = "gaussian";
+    }
+    
+    // input selection type
+    std::cout << "Enter Selection (tournament, roulette) type: ";
+    std::getline(std::cin, selectionType);
+    
+    if (selectionType == "tournament" || selectionType == "roulette") {
+        std::cout << "Using " << selectionType << " Selection" << std::endl;
+    } else {
+        std::cerr << "Invalid selection type. Defaulting to Tournament Selection." << std::endl;
+        selectionType = "tournament";
+    }
+
     try {
-        runGATests();
+        runGATests(crossoverType, mutationType, selectionType);
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <iomanip>
 #include <memory>
+#include <stdexcept>
 
 // ============================================================================
 // LOGGING SYSTEM
@@ -87,11 +88,6 @@ struct TreeNode {
     TreeNode* clone() const;
 };
 
-// Neural network weight structure
-struct NeuralNetwork {
-    std::vector<std::vector<double>> weights;  // weights[layer][neuron]
-    std::vector<std::vector<bool>> connections; // connectivity matrix
-};
 
 // Rule structure for rule-based systems
 struct Rule {
@@ -120,6 +116,19 @@ public:
         : rng(seed), operator_name(name), operation_count(0), error_count(0) {}
     virtual ~CrossoverOperator() = default;
     
+    // Virtual crossover methods for different data types
+    virtual std::pair<RealVector, RealVector> crossover(const RealVector& /* parent1 */, const RealVector& /* parent2 */) {
+        throw std::runtime_error("Real vector crossover not implemented for " + operator_name);
+    }
+    
+    virtual std::pair<BitString, BitString> crossover(const BitString& /* parent1 */, const BitString& /* parent2 */) {
+        throw std::runtime_error("Bit string crossover not implemented for " + operator_name);
+    }
+    
+    virtual std::pair<IntVector, IntVector> crossover(const IntVector& /* parent1 */, const IntVector& /* parent2 */) {
+        throw std::runtime_error("Integer vector crossover not implemented for " + operator_name);
+    }
+    
     // Statistics methods
     size_t getOperationCount() const { return operation_count; }
     size_t getErrorCount() const { return error_count; }
@@ -137,9 +146,9 @@ class OnePointCrossover : public CrossoverOperator {
 public:
     OnePointCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("OnePointCrossover", seed) {}
     
-    std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2);
-    std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2);
-    std::pair<IntVector, IntVector> crossover(const IntVector& parent1, const IntVector& parent2);
+    std::pair<BitString, BitString> crossover(const BitString& parent1, const BitString& parent2) override;
+    std::pair<RealVector, RealVector> crossover(const RealVector& parent1, const RealVector& parent2) override;
+    std::pair<IntVector, IntVector> crossover(const IntVector& parent1, const IntVector& parent2) override;
 };
 
 class TwoPointCrossover : public CrossoverOperator {
@@ -262,7 +271,7 @@ class EdgeCrossover : public CrossoverOperator {
 public:
     EdgeCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("EdgeCrossover", seed) {}
     
-    Permutation crossover(const Permutation& parent1, const Permutation& parent2);
+    Permutation performCrossover(const Permutation& parent1, const Permutation& parent2);
     
 private:
     std::map<int, std::set<int>> buildEdgeTable(const Permutation& parent1, const Permutation& parent2);
@@ -329,19 +338,6 @@ public:
         const TemplatedChromosome& parent1, const TemplatedChromosome& parent2);
 };
 
-class NeuralNetworkWeightCrossover : public CrossoverOperator {
-public:
-    NeuralNetworkWeightCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("NeuralNetworkWeightCrossover", seed) {}
-    
-    NeuralNetwork crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2);
-};
-
-class NeuralNetworkTopologyCrossover : public CrossoverOperator {
-public:
-    NeuralNetworkTopologyCrossover(unsigned seed = std::random_device{}()) : CrossoverOperator("NeuralNetworkTopologyCrossover", seed) {}
-    
-    std::pair<NeuralNetwork, NeuralNetwork> crossover(const NeuralNetwork& parent1, const NeuralNetwork& parent2);
-};
 
 class RulesetCrossover : public CrossoverOperator {
 public:
@@ -393,7 +389,7 @@ public:
                                unsigned seed = std::random_device{}()) 
         : CrossoverOperator("DistancePreservingCrossover", seed), distance_matrix(distances) {}
     
-    Permutation crossover(const Permutation& parent1, const Permutation& parent2);
+    Permutation performCrossover(const Permutation& parent1, const Permutation& parent2);
     
 private:
     std::set<std::pair<int, int>> getCommonEdges(const Permutation& parent1, const Permutation& parent2);
@@ -408,14 +404,14 @@ class DiscreteRecombination : public CrossoverOperator {
 public:
     DiscreteRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator("DiscreteRecombination", seed) {}
     
-    RealVector crossover(const RealVector& parent1, const RealVector& parent2);
+    RealVector performCrossover(const RealVector& parent1, const RealVector& parent2);
 };
 
 class GlobalRecombination : public CrossoverOperator {
 public:
     GlobalRecombination(unsigned seed = std::random_device{}()) : CrossoverOperator("GlobalRecombination", seed) {}
     
-    RealVector crossover(const std::vector<RealVector>& population);
+    RealVector performCrossover(const std::vector<RealVector>& population);
 };
 
 // ============================================================================
@@ -430,7 +426,7 @@ public:
     DifferentialEvolutionCrossover(double crossover_rate = 0.9, unsigned seed = std::random_device{}()) 
         : CrossoverOperator("DifferentialEvolutionCrossover", seed), CR(crossover_rate) {}
     
-    RealVector crossover(const RealVector& target, const RealVector& mutant);
+    RealVector performCrossover(const RealVector& target, const RealVector& mutant);
 };
 
 #endif // CROSSOVER_H

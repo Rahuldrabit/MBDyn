@@ -8,8 +8,7 @@
 #include <stdexcept>
 #include <sstream>
 
-// Forward declaration for logger
-class Logger;
+
 
 /**
  * @brief Comprehensive mutation operators for genetic algorithms
@@ -49,17 +48,14 @@ private:
     mutable std::mt19937 rng;
     mutable std::uniform_real_distribution<double> uniform_dist;
     mutable std::normal_distribution<double> normal_dist;
-    std::shared_ptr<Logger> logger;
     mutable MutationStats stats;
     
     // Helper methods
     void validateProbability(double pm, const std::string& methodName) const;
     void validateBounds(const std::vector<double>& lower, const std::vector<double>& upper) const;
-    void logMutationAttempt(const std::string& methodName, double pm, size_t chromosomeSize) const;
-    void logMutationResult(const std::string& methodName, bool success, const std::string& details = "") const;
     
 public:
-    explicit MutationOperators(std::shared_ptr<Logger> logger = nullptr);
+    explicit MutationOperators();
     
     // ======================== BINARY REPRESENTATION ========================
     
@@ -180,7 +176,6 @@ public:
     // ======================== UTILITY FUNCTIONS ========================
     
     void setSeed(unsigned int seed);
-    void setLogger(std::shared_ptr<Logger> newLogger);
     const MutationStats& getStatistics() const { return stats; }
     void resetStatistics() { stats.reset(); }
     
@@ -191,34 +186,6 @@ public:
                                               const std::vector<double>& lowerBounds,
                                               const std::vector<double>& upperBounds) const;
     std::vector<int> generatePermutation(int n) const;
-};
-
-/**
- * @brief Simple logger interface for mutation operations
- */
-class Logger {
-public:
-    enum Level { DEBUG, INFO, WARNING, ERROR };
-    
-    virtual ~Logger() = default;
-    virtual void log(Level level, const std::string& message) = 0;
-    
-    void debug(const std::string& msg) { log(DEBUG, msg); }
-    void info(const std::string& msg) { log(INFO, msg); }
-    void warning(const std::string& msg) { log(WARNING, msg); }
-    void error(const std::string& msg) { log(ERROR, msg); }
-};
-
-/**
- * @brief Console logger implementation
- */
-class ConsoleLogger : public Logger {
-private:
-    Level minLevel;
-    
-public:
-    explicit ConsoleLogger(Level minLevel = INFO) : minLevel(minLevel) {}
-    void log(Level level, const std::string& message) override;
 };
 
 #endif

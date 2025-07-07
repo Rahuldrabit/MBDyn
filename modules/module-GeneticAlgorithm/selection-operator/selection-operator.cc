@@ -7,6 +7,7 @@
 #include <random>
 #include <numeric>
 #include <limits>
+#include <memory>
 
 // ======================== SELECTION OPERATORS ========================
 
@@ -811,4 +812,132 @@ std::vector<std::vector<int>> fastNonDominatedSort(std::vector<MultiObjectiveInd
     
     fronts.pop_back();  // Remove empty last front
     return fronts;
+}
+
+// Tournament Selection implementation
+std::vector<Individual> TournamentSelection::select(const std::vector<Individual>& population, size_t count) {
+    std::vector<Individual> selected;
+    selected.reserve(count);
+    
+    if (population.empty()) {
+        return selected;
+    }
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, population.size() - 1);
+    
+    for (size_t i = 0; i < count; ++i) {
+        Individual best = population[dis(gen)];
+        
+        for (size_t j = 1; j < tournament_size && j < population.size(); ++j) {
+            Individual candidate = population[dis(gen)];
+            if (candidate.fitness > best.fitness) {
+                best = candidate;
+            }
+        }
+        
+        selected.push_back(best);
+    }
+    
+    return selected;
+}
+
+// Roulette Wheel Selection implementation
+std::vector<Individual> RouletteWheelSelection::select(const std::vector<Individual>& population, size_t count) {
+    std::vector<Individual> selected;
+    selected.reserve(count);
+    
+    if (population.empty()) {
+        return selected;
+    }
+    
+    double total_fitness = 0.0;
+    for (const auto& individual : population) {
+        total_fitness += individual.fitness;
+    }
+    
+    if (total_fitness <= 0.0) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, population.size() - 1);
+        
+        for (size_t i = 0; i < count; ++i) {
+            selected.push_back(population[dis(gen)]);
+        }
+        return selected;
+    }
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, total_fitness);
+    
+    for (size_t i = 0; i < count; ++i) {
+        double random_value = dis(gen);
+        double cumulative_fitness = 0.0;
+        
+        for (const auto& individual : population) {
+            cumulative_fitness += individual.fitness;
+            if (cumulative_fitness >= random_value) {
+                selected.push_back(individual);
+                break;
+            }
+        }
+    }
+    
+    return selected;
+}
+
+std::vector<Individual> RankSelection::select(const std::vector<Individual>& population, size_t count) {
+    std::vector<Individual> selected;
+    selected.reserve(count);
+    
+    if (population.empty()) {
+        return selected;
+    }
+    
+    // Create a copy and sort by fitness
+    std::vector<Individual> sorted_population = population;
+    std::sort(sorted_population.begin(), sorted_population.end(),
+        [](const Individual& a, const Individual& b) {
+            return a.fitness < b.fitness; // Ascending order, worst to best
+        });
+    
+    // Calculate selection probabilities based on rank
+    std::vector<double> probabilities;
+    probabilities.reserve(sorted_population.size());
+    
+    size_t n = sorted_population.size();
+    for (size_t i = 0; i < n; ++i) {
+        double prob = (selection_pressure - 2.0 * (selection_pressure - 1.0) * i / (n - 1)) / n;
+        probabilities.push_back(prob);
+    }
+    
+    // Calculate cumulative probabilities
+    std::vector<double> cumulative_probs;
+    cumulative_probs.reserve(n);
+    double sum = 0.0;
+    for (double prob : probabilities) {
+        sum += prob;
+        cumulative_probs.push_back(sum);
+    }
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    
+    for (size_t i = 0; i < count; ++i) {
+        double random_value = dis(gen);
+        
+        auto it = std::lower_bound(cumulative_probs.begin(), cumulative_probs.end(), random_value);
+        size_t index = std::distance(cumulative_probs.begin(), it);
+        
+        if (index < sorted_population.size()) {
+            selected.push_back(sorted_population[index]);
+        } else {
+            selected.push_back(sorted_population.back());
+        }
+    }
+    
+    return selected;
 }

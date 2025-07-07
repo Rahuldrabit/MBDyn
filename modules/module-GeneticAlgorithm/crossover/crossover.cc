@@ -6,178 +6,6 @@
 #include <stdexcept>
 #include <iostream>
 #include <climits>
-#include <cstdio>  // for std::rename
-
-// ============================================================================
-// LOGGING SYSTEM IMPLEMENTATION
-// ============================================================================
-
-std::unique_ptr<CrossoverLogger> CrossoverLogger::instance = nullptr;
-
-CrossoverLogger::CrossoverLogger() 
-    : min_log_level(LogLevel::INFO), console_output(true), max_file_size(10 * 1024 * 1024), current_file_size(0) {
-}
-
-CrossoverLogger& CrossoverLogger::getInstance() {
-    if (!instance) {
-        instance = std::unique_ptr<CrossoverLogger>(new CrossoverLogger());
-    }
-    return *instance;
-}
-
-void CrossoverLogger::initialize(const std::string& filename, LogLevel level, bool console, size_t max_size) {
-    log_filename = filename;
-    min_log_level = level;
-    console_output = console;
-    max_file_size = max_size;
-    
-    if (log_file.is_open()) {
-        log_file.close();
-    }
-    
-    log_file.open(log_filename, std::ios::app);
-    if (!log_file.is_open()) {
-        std::cerr << "Failed to open log file: " << log_filename << std::endl;
-    } else {
-        // Get current file size
-        log_file.seekp(0, std::ios::end);
-        current_file_size = log_file.tellp();
-        log(LogLevel::INFO, "Logging system initialized", "CrossoverLogger", __LINE__);
-    }
-}
-
-std::string CrossoverLogger::getCurrentTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()) % 1000;
-    
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
-    ss << '.' << std::setfill('0') << std::setw(3) << ms.count();
-    return ss.str();
-}
-
-std::string CrossoverLogger::logLevelToString(LogLevel level) {
-    switch (level) {
-        case LogLevel::DEBUG: return "DEBUG";
-        case LogLevel::INFO: return "INFO";
-        case LogLevel::WARNING: return "WARNING";
-        case LogLevel::ERROR: return "ERROR";
-        case LogLevel::CRITICAL: return "CRITICAL";
-        default: return "UNKNOWN";
-    }
-}
-
-void CrossoverLogger::rotateLogFile() {
-    if (log_file.is_open()) {
-        log_file.close();
-    }
-    
-    // Rename current log file
-    std::string backup_name = log_filename + ".bak";
-    std::rename(log_filename.c_str(), backup_name.c_str());
-    
-    // Open new log file
-    log_file.open(log_filename, std::ios::app);
-    current_file_size = 0;
-    
-    if (log_file.is_open()) {
-        log(LogLevel::INFO, "Log file rotated", "rotateLogFile", __LINE__);
-    }
-}
-
-void CrossoverLogger::log(LogLevel level, const std::string& message, const std::string& function, int line) {
-    if (level < min_log_level) return;
-    
-    std::stringstream log_entry;
-    log_entry << "[" << getCurrentTimestamp() << "] "
-              << "[" << logLevelToString(level) << "] ";
-    
-    if (!function.empty()) {
-        log_entry << "[" << function;
-        if (line > 0) {
-            log_entry << ":" << line;
-        }
-        log_entry << "] ";
-    }
-    
-    log_entry << message;
-    
-    std::string full_message = log_entry.str();
-    
-    // Console output
-    if (console_output) {
-        if (level >= LogLevel::ERROR) {
-            std::cerr << full_message << std::endl;
-        } else {
-            std::cout << full_message << std::endl;
-        }
-    }
-    
-    // File output
-    if (log_file.is_open()) {
-        // Check if rotation is needed
-        if (current_file_size + full_message.length() > max_file_size) {
-            rotateLogFile();
-        }
-        
-        log_file << full_message << std::endl;
-        log_file.flush();
-        current_file_size += full_message.length() + 1; // +1 for newline
-    }
-}
-
-void CrossoverLogger::logError(const std::string& message, const std::string& function, int line) {
-    log(LogLevel::ERROR, message, function, line);
-}
-
-void CrossoverLogger::logWarning(const std::string& message, const std::string& function, int line) {
-    log(LogLevel::WARNING, message, function, line);
-}
-
-void CrossoverLogger::logInfo(const std::string& message, const std::string& function, int line) {
-    log(LogLevel::INFO, message, function, line);
-}
-
-void CrossoverLogger::logDebug(const std::string& message, const std::string& function, int line) {
-    log(LogLevel::DEBUG, message, function, line);
-}
-
-CrossoverLogger::~CrossoverLogger() {
-    if (log_file.is_open()) {
-        log(LogLevel::INFO, "Logging system shutting down", "~CrossoverLogger", __LINE__);
-        log_file.close();
-    }
-}
-
-// ============================================================================
-// BASE CROSSOVER OPERATOR IMPLEMENTATION
-// ============================================================================
-
-void CrossoverOperator::logOperation(const std::string& operation, bool success) const {
-    const_cast<size_t&>(operation_count)++;
-    if (!success) {
-        const_cast<size_t&>(error_count)++;
-    }
-    
-    std::stringstream msg;
-    msg << operator_name << ": " << operation << " - " << (success ? "SUCCESS" : "FAILED")
-        << " (Operations: " << operation_count << ", Errors: " << error_count << ")";
-    
-    if (success) {
-        LOG_DEBUG(msg.str());
-    } else {
-        LOG_ERROR(msg.str());
-    }
-}
-
-void CrossoverOperator::logError(const std::string& error_msg) const {
-    const_cast<size_t&>(error_count)++;
-    std::stringstream msg;
-    msg << operator_name << " ERROR: " << error_msg;
-    LOG_ERROR(msg.str());
-}
 
 // ============================================================================
 // TREE NODE IMPLEMENTATION
@@ -202,43 +30,27 @@ TreeNode* TreeNode::clone() const {
 // ============================================================================
 
 std::pair<BitString, BitString> OnePointCrossover::crossover(const BitString& parent1, const BitString& parent2) {
-    try {
-        LOG_DEBUG("OnePointCrossover: Starting crossover operation");
-        
-        if (parent1.size() != parent2.size()) {
-            logError("Parents must have the same length");
-            throw std::invalid_argument("Parents must have the same length");
-        }
-        
-        size_t length = parent1.size();
-        if (length <= 1) {
-            LOG_WARNING("OnePointCrossover: Length <= 1, returning original parents");
-            logOperation("crossover (BitString)", true);
-            return {parent1, parent2};
-        }
-        
-        std::uniform_int_distribution<size_t> dist(1, length - 1);
-        size_t crossover_point = dist(rng);
-        
-        LOG_DEBUG("OnePointCrossover: Crossover point selected at position " + std::to_string(crossover_point));
-        
-        BitString child1 = parent1;
-        BitString child2 = parent2;
-        
-        for (size_t i = crossover_point; i < length; ++i) {
-            child1[i] = parent2[i];
-            child2[i] = parent1[i];
-        }
-        
-        logOperation("crossover (BitString)", true);
-        LOG_DEBUG("OnePointCrossover: Crossover completed successfully");
-        return {child1, child2};
-        
-    } catch (const std::exception& e) {
-        logError("Exception in crossover (BitString): " + std::string(e.what()));
-        logOperation("crossover (BitString)", false);
-        throw;
+    if (parent1.size() != parent2.size()) {
+        throw std::invalid_argument("Parents must have the same length");
     }
+    
+    size_t length = parent1.size();
+    if (length <= 1) {
+        return {parent1, parent2};
+    }
+    
+    std::uniform_int_distribution<size_t> dist(1, length - 1);
+    size_t crossover_point = dist(rng);
+    
+    BitString child1 = parent1;
+    BitString child2 = parent2;
+    
+    for (size_t i = crossover_point; i < length; ++i) {
+        child1[i] = parent2[i];
+        child2[i] = parent1[i];
+    }
+    
+    return {child1, child2};
 }
 
 std::pair<RealVector, RealVector> OnePointCrossover::crossover(const RealVector& parent1, const RealVector& parent2) {
@@ -381,70 +193,50 @@ std::pair<IntVector, IntVector> TwoPointCrossover::crossover(const IntVector& pa
 // ============================================================================
 
 std::pair<BitString, BitString> MultiPointCrossover::crossover(const BitString& parent1, const BitString& parent2) {
-    try {
-        LOG_DEBUG("MultiPointCrossover: Starting crossover with " + std::to_string(num_points) + " points");
-        
-        if (parent1.size() != parent2.size()) {
-            logError("Parents must have the same length");
-            throw std::invalid_argument("Parents must have the same length");
-        }
-        
-        size_t length = parent1.size();
-        int actual_points = std::min(num_points, static_cast<int>(length - 1));
-        if (actual_points <= 0) {
-            LOG_WARNING("MultiPointCrossover: No crossover points possible, returning original parents");
-            logOperation("crossover (BitString)", true);
-            return {parent1, parent2};
-        }
-        
-        std::vector<size_t> points;
-        std::uniform_int_distribution<size_t> dist(1, length - 1);
-        
-        std::set<size_t> unique_points;  // Use set instead of unordered_set for deterministic ordering
-        int attempts = 0;
-        const int max_attempts = length * 2; // Prevent infinite loop
-        
-        while (unique_points.size() < static_cast<size_t>(actual_points) && attempts < max_attempts) {
-            unique_points.insert(dist(rng));
-            attempts++;
-        }
-        
-        if (attempts >= max_attempts) {
-            LOG_WARNING("MultiPointCrossover: Maximum attempts reached for point selection");
-        }
-        
-        points.assign(unique_points.begin(), unique_points.end());
-        // points are already sorted since we used std::set
-        
-        LOG_DEBUG("MultiPointCrossover: Selected " + std::to_string(points.size()) + " crossover points");
-        
-        BitString child1 = parent1;
-        BitString child2 = parent2;
-        
-        bool swap = false;
-        size_t current_point = 0;
-        
-        for (size_t i = 0; i < length; ++i) {
-            if (current_point < points.size() && i == points[current_point]) {
-                swap = !swap;
-                current_point++;
-            }
-            
-            if (swap) {
-                child1[i] = parent2[i];
-                child2[i] = parent1[i];
-            }
-        }
-        
-        logOperation("crossover (BitString)", true);
-        LOG_DEBUG("MultiPointCrossover: Crossover completed successfully");
-        return {child1, child2};
-        
-    } catch (const std::exception& e) {
-        logError("Exception in crossover (BitString): " + std::string(e.what()));
-        logOperation("crossover (BitString)", false);
-        throw;
+    if (parent1.size() != parent2.size()) {
+        throw std::invalid_argument("Parents must have the same length");
     }
+    
+    size_t length = parent1.size();
+    int actual_points = std::min(num_points, static_cast<int>(length - 1));
+    if (actual_points <= 0) {
+        return {parent1, parent2};
+    }
+    
+    std::vector<size_t> points;
+    std::uniform_int_distribution<size_t> dist(1, length - 1);
+    
+    std::set<size_t> unique_points;  // Use set instead of unordered_set for deterministic ordering
+    int attempts = 0;
+    const int max_attempts = length * 2; // Prevent infinite loop
+    
+    while (unique_points.size() < static_cast<size_t>(actual_points) && attempts < max_attempts) {
+        unique_points.insert(dist(rng));
+        attempts++;
+    }
+    
+    points.assign(unique_points.begin(), unique_points.end());
+    // points are already sorted since we used std::set
+    
+    BitString child1 = parent1;
+    BitString child2 = parent2;
+    
+    bool swap = false;
+    size_t current_point = 0;
+    
+    for (size_t i = 0; i < length; ++i) {
+        if (current_point < points.size() && i == points[current_point]) {
+            swap = !swap;
+            current_point++;
+        }
+        
+        if (swap) {
+            child1[i] = parent2[i];
+            child2[i] = parent1[i];
+        }
+    }
+    
+    return {child1, child2};
 }
 
 std::pair<RealVector, RealVector> MultiPointCrossover::crossover(const RealVector& parent1, const RealVector& parent2) {

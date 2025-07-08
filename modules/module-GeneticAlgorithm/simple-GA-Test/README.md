@@ -102,8 +102,6 @@ g++ -std=c++17 -Wall -Wextra -O3 -I.. \
     ../selection-operator/selection-operator.cc \
     ../crossover/crossover.cc \
     ../mutation/mutation.cc \
-    ../crossover/logger_init.cc \
-    ../mutation/logger_init.cc \
     -o simple_ga_test
 ```
 

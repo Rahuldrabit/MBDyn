@@ -194,6 +194,11 @@ public:
     
     BinaryIndividual(int length) : chromosome(length) {}
     
+    // Convert binary chromosome to Individual representation
+    // where each binary gene is represented as 0.0 or 1.0
+    // This is necessary for compatibility with the Individual class
+    // which expects a vector of doubles
+    // This method is used to convert the binary representation to a real-valued representation
     Individual toIndividual() const override {
         std::vector<double> realChrom(chromosome.size());
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -202,6 +207,7 @@ public:
         return Individual(realChrom, fitness);
     }
     
+    // Convert binary chromosome to real-valued representation for compatibility with Individual class 
     void randomInitialize(std::mt19937& rng, const GAConfig& config) override {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -223,6 +229,7 @@ public:
     
     IntegerIndividual(int length) : chromosome(length) {}
     
+    // 
     Individual toIndividual() const override {
         std::vector<double> realChrom(chromosome.size());
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -231,6 +238,7 @@ public:
         return Individual(realChrom, fitness);
     }
     
+    //
     void randomInitialize(std::mt19937& rng, const GAConfig& config) override {
         std::uniform_int_distribution<int> dist(static_cast<int>(config.lowerBound), 
                                                static_cast<int>(config.upperBound));

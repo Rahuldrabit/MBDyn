@@ -11,6 +11,48 @@ This module implements a Genetic Algorithm (GA) optimization framework for MBDyn
 - Constraint handling capabilities
 - Parallel evaluation of fitness functions
 - Configurable GA parameters (population size, mutation rate, crossover rate, etc.)
+- **NEW**: Comprehensive test suite with benchmark optimization functions
+
+## Test Suite
+
+The module includes a simple GA pipeline for testing with three benchmark optimization functions:
+
+### Benchmark Functions
+
+1. **Rastrigin Function**: Highly multimodal with many local optima
+   - Global minimum: f(0,...,0) = 0
+   - Search domain: [-5.12, 5.12]^n
+
+2. **Ackley Function**: Has one global minimum and many local minima  
+   - Global minimum: f(0,...,0) = 0
+   - Search domain: [-32.768, 32.768]^n
+
+3. **Schwefel Function**: Deceptive function with global optimum far from local optima
+   - Global minimum: f(420.9687,...,420.9687) ≈ 0
+   - Search domain: [-500, 500]^n
+
+### Running the Test Suite
+
+```bash
+cd simple-GA-Test
+make run
+```
+
+This will:
+- Build the test executable
+- Run GA optimization on all three benchmark functions
+- Generate results files for each function
+- Display progress and final results
+
+### Test Configuration
+
+The default test configuration uses:
+- Population size: 50
+- Generations: 50
+- Chromosome length: 10 variables
+- Mutation rate: 1%
+- Crossover rate: 80%
+- Elite ratio: 10%
 
 ## Installation
 
@@ -109,6 +151,24 @@ To extend the Genetic Algorithm module:
 1. Modify `module-GeneticAlgorithm.h` to add new GA features or parameters
 2. Implement the corresponding functionality in `module-GeneticAlgorithm.cc`
 3. Rebuild the module
+
+## Testing and Validation
+
+The test suite provides a comprehensive way to validate GA performance:
+
+```bash
+# Run all benchmark tests
+cd simple-GA-Test
+make run
+
+# Clean build files
+make clean
+
+# Build only
+make all
+```
+
+Results are saved as CSV files that can be analyzed with plotting tools to visualize convergence behavior.
 
 ## License
 

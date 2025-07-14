@@ -1,0 +1,3 @@
+[submodule "MBDyn"]
+	path = MBDyn
+	url = https://github.com/Rahuldrabit/MBDyn.git

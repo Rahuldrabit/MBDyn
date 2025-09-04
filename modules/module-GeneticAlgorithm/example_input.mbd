@@ -1,0 +1,109 @@
+# Example MBDyn input file using the new Genetic Algorithm optimization format
+
+begin: data;
+    problem: initial value;
+end: data;
+
+begin: initial value;
+    initial time: 0.;
+    final time: 1.;
+    time step: 1e-3;
+    tolerance: 1e-6;
+    max iterations: 10;
+end: initial value;
+
+begin: control data;
+    structural nodes: 5;
+    joints: 5;
+    elements: 1;
+end: control data;
+
+# Example nodes
+begin: nodes;
+    structural: 121, dynamic,
+        null,
+        eye,
+        null,
+        null;
+    
+    structural: 123, dynamic,
+        null,
+        eye,
+        null,
+        null;
+    
+    structural: 126, dynamic,
+        null,
+        eye,
+        null,
+        null;
+        
+    structural: 127, dynamic,
+        null,
+        eye,
+        null,
+        null;
+        
+    structural: 128, dynamic,
+        null,
+        eye,
+        null,
+        null;
+end: nodes;
+
+# Example joints (these will be optimized)
+begin: elements;
+    joint: 101, revolute pin,
+        121,
+        null,
+        hinge, eye,
+        null;
+        
+    joint: 102, revolute pin,
+        123,
+        null,
+        hinge, eye,
+        null;
+        
+    joint: 103, revolute pin,
+        126,
+        null,
+        hinge, eye,
+        null;
+        
+    joint: 104, revolute pin,
+        127,
+        null,
+        hinge, eye,
+        null;
+        
+    joint: 105, revolute pin,
+        128,
+        null,
+        hinge, eye,
+        null;
+
+    # Genetic Algorithm Optimization Element
+    user defined: 1000, genetic algorithm optimization,
+        
+        inputs number, 5,
+            element, 101, joint, string, "M[2]", direct,
+            element, 102, joint, string, "M[2]", direct,
+            element, 103, joint, string, "M[2]", direct,
+            element, 104, joint, string, "M[2]", direct,
+            element, 105, joint, string, "M[2]", direct,
+
+        genetic algorithm, "libga.so",
+        constraint function, "libcons.so",
+        population, 50,
+        generations, 100,
+
+        outputs number, 3,
+            node, 121,
+            node, 123,
+            node, 126;
+
+end: elements;
+
+begin: initial values;
+end: initial values;

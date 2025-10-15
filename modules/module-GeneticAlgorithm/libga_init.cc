@@ -74,6 +74,37 @@ void ga_set_population(void* ctx, const double* pop_data) {
     }
 }
 
+// Seed population with external data and optionally override size/length
+int ga_seed_population(void* ctx, const double* pop_data,
+                      int pop_size, int chrom_len) {
+    PopulationContext* pc = static_cast<PopulationContext*>(ctx);
+    if (!pc || !pop_data || pop_size <= 0 || chrom_len <= 0) {
+        return -1;
+    }
+
+    // Resize storage to requested dimensions
+    pc->population_size = pop_size;
+    pc->chromosome_length = chrom_len;
+    pc->population.assign(pop_size, std::vector<double>(chrom_len, 0.0));
+
+    // Ensure bounds vectors have correct size (retain previous ranges if available)
+    if ((int)pc->lower_bounds.size() != chrom_len) {
+        pc->lower_bounds.assign(chrom_len, 0.0);
+    }
+    if ((int)pc->upper_bounds.size() != chrom_len) {
+        pc->upper_bounds.assign(chrom_len, 1.0);
+    }
+
+    int idx = 0;
+    for (auto& individual : pc->population) {
+        for (double& gene : individual) {
+            gene = pop_data[idx++];
+        }
+    }
+
+    return 0;
+}
+
 // Get individual
 void ga_get_individual(void* ctx, int index, double* individual) {
     PopulationContext* pc = static_cast<PopulationContext*>(ctx);

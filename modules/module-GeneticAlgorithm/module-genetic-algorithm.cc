@@ -1,3 +1,28 @@
+/*
+  NOTE: If you deleted a git branch but it still appears in VSCode's branch list:
+    1) Update/prune remote refs locally:
+         git fetch --prune origin
+       or
+         git remote prune origin
+
+    2) Remove local branch if present:
+         git branch -d <branch-name>
+       (use -D to force)
+
+    3) Ensure remote branch is deleted:
+         git push origin --delete <branch-name>
+
+    4) Refresh VSCode's Git view or reload window:
+         Ctrl+Shift+P -> "Git: Refresh"  (or) "Developer: Reload Window"
+
+    5) If a stale remote ref persists, remove it manually:
+         git update-ref -d refs/remotes/origin/<branch-name>
+
+    6) Restart VSCode if needed.
+
+  These steps fix most cases where VSCode still shows deleted branches.
+*/
+
 /* MBDyn UDE: genetic_algorithm
  *
  * Complete GA implementation in the module:
@@ -19,6 +44,9 @@
 #include <iostream>
 #include <random>
 #include <memory>
+#include <unordered_map>
+#include <limits>
+#include <numeric>
 
 #include "dataman.h"
 #include "userelem.h"
@@ -36,12 +64,225 @@ typedef void  (*GASetIndividualFunc)(void* ctx, int index, const double* individ
 typedef int   (*GAGetPopSizeFunc)(void* ctx);
 typedef int   (*GAGetChromLenFunc)(void* ctx);
 typedef void  (*GACleanupFunc)(void* ctx);
+typedef int   (*GASeedPopulationFunc)(void* ctx, const double* pop_data, int pop_size, int chrom_len);
 
 // libcons.so fitness API (fitness evaluation only)
 typedef double (*EvaluateFitnessFunc)(const double* genes, int n_genes, const double* inputs, int n_inputs);
 typedef double (*EvaluateConstraintFunc)(const double* genes, int n_genes);
 
+// Variable Registry to dynamically link optimization variables
+class VariableRegistry {
+private:
+    // Structure to hold variable information
+    struct VarInfo {
+        double* ptr;      // Pointer to the actual variable
+        double min_value; // Minimum allowed value
+        double max_value; // Maximum allowed value
+        std::string description; // Optional description
+        void* library_handle; // Handle to the shared library (nullptr for direct variables)
+    };
 
+    // Map of variable names to their pointers and metadata
+    std::unordered_map<std::string, VarInfo> registry;
+    
+    // Current values (for optimization/temporary storage)
+    std::unordered_map<std::string, double> current_values;
+    
+    // List of variable names in registration order (for consistent indexing)
+    std::vector<std::string> var_names;
+    
+    // Map of loaded shared libraries
+    std::unordered_map<std::string, void*> loaded_libraries;
+
+public:
+    VariableRegistry() {}
+    
+    ~VariableRegistry() {
+        // Close all opened libraries
+        for (auto& lib : loaded_libraries) {
+            if (lib.second) {
+                dlclose(lib.second);
+            }
+        }
+    }
+
+    // Register a new variable with direct pointer
+    bool registerVariable(const std::string& name, double* ptr, 
+                         double min_value, double max_value,
+                         const std::string& description = "") {
+        if (registry.find(name) != registry.end()) {
+            return false; // Already exists
+        }
+        
+        VarInfo info{ptr, min_value, max_value, description, nullptr};
+        registry[name] = info;
+        var_names.push_back(name);
+        
+        // Initialize current value
+        if (ptr) {
+            current_values[name] = *ptr;
+        } else {
+            current_values[name] = 0.0;
+        }
+        
+        return true;
+    }
+    
+    // Load a shared library and register its variables
+    bool loadSharedLibrary(const std::string& library_path) {
+        // Check if already loaded
+        if (loaded_libraries.find(library_path) != loaded_libraries.end()) {
+            return true; // Already loaded
+        }
+        
+        // Load the library
+        void* handle = dlopen(library_path.c_str(), RTLD_LAZY);
+        if (!handle) {
+            std::cerr << "Error loading library: " << dlerror() << std::endl;
+            return false;
+        }
+        
+        loaded_libraries[library_path] = handle;
+        return true;
+    }
+    
+    // Register a variable from a shared library by symbol name
+    bool registerSharedVariable(const std::string& library_path, 
+                               const std::string& symbol_name,
+                               const std::string& var_name,
+                               double min_value, double max_value,
+                               const std::string& description = "") {
+        // Ensure library is loaded
+        if (!loadSharedLibrary(library_path)) {
+            return false;
+        }
+        
+        void* lib_handle = loaded_libraries[library_path];
+        
+        // Look up the symbol in the shared library
+        double* ptr = static_cast<double*>(dlsym(lib_handle, symbol_name.c_str()));
+        if (!ptr) {
+            std::cerr << "Error finding symbol " << symbol_name 
+                      << " in library " << library_path 
+                      << ": " << dlerror() << std::endl;
+            return false;
+        }
+        
+        // Register the variable with the resolved pointer
+        if (registry.find(var_name) != registry.end()) {
+            return false; // Already exists
+        }
+        
+        VarInfo info{ptr, min_value, max_value, description, lib_handle};
+        registry[var_name] = info;
+        var_names.push_back(var_name);
+        
+        // Initialize current value
+        current_values[var_name] = *ptr;
+        
+        std::cout << "Registered shared variable: " << var_name 
+                  << " from " << library_path << "::" << symbol_name 
+                  << " (current value: " << *ptr << ")" << std::endl;
+        
+        return true;
+    }
+    
+    // Get number of registered variables
+    size_t size() const {
+        return registry.size();
+    }
+    
+    // Check if a variable exists
+    bool hasVariable(const std::string& name) const {
+        return registry.find(name) != registry.end();
+    }
+    
+    // Get variable value
+    double getValue(const std::string& name) const {
+        auto it = current_values.find(name);
+        if (it != current_values.end()) {
+            return it->second;
+        }
+        return 0.0;
+    }
+    
+    // Set variable value (doesn't immediately update the actual variable)
+    bool setValue(const std::string& name, double value) {
+        auto it = registry.find(name);
+        if (it == registry.end()) {
+            return false;
+        }
+        
+        // Clamp to bounds
+        if (value < it->second.min_value) value = it->second.min_value;
+        if (value > it->second.max_value) value = it->second.max_value;
+        
+        current_values[name] = value;
+        return true;
+    }
+    
+    // Get variable by index (for population encoding/decoding)
+    std::string getNameByIndex(size_t index) const {
+        if (index < var_names.size()) {
+            return var_names[index];
+        }
+        return "";
+    }
+    
+    // Get bounds for all variables
+    void getBounds(std::vector<double>& lower, std::vector<double>& upper) const {
+        lower.resize(var_names.size());
+        upper.resize(var_names.size());
+        
+        for (size_t i = 0; i < var_names.size(); ++i) {
+            const auto& info = registry.at(var_names[i]);
+            lower[i] = info.min_value;
+            upper[i] = info.max_value;
+        }
+    }
+    
+    // Apply current values to the actual variables
+    void applyValues() {
+        for (const auto& name : var_names) {
+            auto& info = registry[name];
+            if (info.ptr) {
+                *(info.ptr) = current_values[name];
+            }
+        }
+    }
+    
+    // Encode current values into a chromosome
+    void encodeToChromosome(std::vector<double>& chromosome) const {
+        chromosome.resize(var_names.size());
+        for (size_t i = 0; i < var_names.size(); ++i) {
+            chromosome[i] = current_values.at(var_names[i]);
+        }
+    }
+    
+    // Decode chromosome into current values
+    void decodeFromChromosome(const std::vector<double>& chromosome) {
+        for (size_t i = 0; i < chromosome.size() && i < var_names.size(); ++i) {
+            double value = chromosome[i];
+            const auto& info = registry[var_names[i]];
+            
+            // Clamp to bounds
+            if (value < info.min_value) value = info.min_value;
+            if (value > info.max_value) value = info.max_value;
+            
+            current_values[var_names[i]] = value;
+        }
+    }
+    
+    // Get variable info for debugging/output
+    std::vector<std::pair<std::string, std::pair<double, double>>> getVariableInfo() const {
+        std::vector<std::pair<std::string, std::pair<double, double>>> result;
+        for (const auto& name : var_names) {
+            const auto& info = registry.at(name);
+            result.push_back({name, {info.min_value, info.max_value}});
+        }
+        return result;
+    }
+};
 
 class GeneticAlgorithm : public UserDefinedElem {
 private:
@@ -100,12 +341,18 @@ private:
     GAGetPopSizeFunc gaGetPopSize;
     GAGetChromLenFunc gaGetChromLen;
     GACleanupFunc gaCleanup;
+    GASeedPopulationFunc gaSeedPopulation;
     
     // libcons.so functions (fitness only)
     EvaluateFitnessFunc evaluateFitness;
     EvaluateConstraintFunc evaluateConstraint;
     
     void* gaCtx; // Population context from libga.so
+    
+    // Variable registry for optimization variables
+    VariableRegistry var_registry;
+
+    bool populationSeededFromRegistry;
     
     // Internal GA methods (MODULE does all the work)
     void evaluatePopulation();
@@ -114,6 +361,9 @@ private:
     Individual selectParent();
     void performCrossover(std::vector<std::vector<double>>& new_pop, int& offspring_count);
     void applyMutation(std::vector<double>& individual);
+    
+    // Apply best solution to registered variables
+    void applyBestSolution();
 
 public:
     GeneticAlgorithm(unsigned uLabel, const DofOwner *pDO,
@@ -131,6 +381,18 @@ public:
     unsigned int iGetNumPrivData(void) const;
     virtual unsigned int iGetPrivDataIdx(const char *s) const;
     virtual doublereal dGetPrivData(unsigned int i) const;
+    
+    // Register a variable for optimization
+    bool registerVariable(const std::string& name, double* ptr, 
+                          double min_value, double max_value,
+                          const std::string& description = "");
+                          
+    // Register a variable from a shared library
+    bool registerSharedVariable(const std::string& library_path,
+                               const std::string& symbol_name,
+                               const std::string& var_name,
+                               double min_value, double max_value,
+                               const std::string& description = "");
 };
 
 // Constructor
@@ -138,8 +400,13 @@ GeneticAlgorithm::GeneticAlgorithm(
     unsigned uLabel, const DofOwner *pDO,
     DataManager* pDM, MBDynParser& HP)
 : UserDefinedElem(uLabel, pDO), 
-  gaLibHandle(nullptr), consLibHandle(nullptr), gaCtx(nullptr),
-  current_generation(0), best_fitness(-1e30),
+    gaLibHandle(nullptr), consLibHandle(nullptr),
+    gaInitPop(nullptr), gaGetIndividual(nullptr), gaSetIndividual(nullptr),
+    gaGetPopSize(nullptr), gaGetChromLen(nullptr), gaCleanup(nullptr), gaSeedPopulation(nullptr),
+    evaluateFitness(nullptr), evaluateConstraint(nullptr),
+    gaCtx(nullptr),
+    populationSeededFromRegistry(false),
+    current_generation(0), best_fitness(-1e30),
   rng(std::random_device{}()), uniform_dist(0.0, 1.0)
 {
     // Defaults
@@ -202,6 +469,53 @@ GeneticAlgorithm::GeneticAlgorithm(
     if (HP.IsKeyWord("elite" "ratio")) {
         elite_ratio = HP.GetReal();
     }
+    
+    // Parse variable registry entries
+    if (HP.IsKeyWord("variables")) {
+        integer nVars = HP.GetInt();
+        if (nVars < 0) {
+            throw ErrGeneric(MBDYN_EXCEPT_ARGS, "genetic_algorithm: variables number must be >= 0");
+        }
+        
+        // Variables will be registered externally via shared memory/pointers
+        chromosome_length = nVars;
+        
+        // Can optionally define variable names and bounds here for documentation
+        for (integer i = 0; i < nVars; ++i) {
+            if (HP.IsKeyWord("variable")) {
+                std::string name = HP.GetString();
+                double min_val = -10.0;  // Default bounds
+                double max_val = 10.0;
+                
+                if (HP.IsKeyWord("min")) {
+                    min_val = HP.GetReal();
+                }
+                if (HP.IsKeyWord("max")) {
+                    max_val = HP.GetReal();
+                }
+                
+                // Check for shared variable definition
+                if (HP.IsKeyWord("shared")) {
+                    std::string lib_path = HP.GetString();
+                    std::string symbol = HP.GetString();
+                    
+                    // Register variable from shared library
+                    if (!var_registry.registerSharedVariable(lib_path, symbol, name, 
+                                                          min_val, max_val)) {
+                        silent_cerr("GeneticAlgorithm(" << GetLabel() << "): warning - "
+                                  << "failed to register shared variable " << name << std::endl);
+                    }
+                } else {
+                    // Register variable without pointer (will be set later)
+                    var_registry.registerVariable(name, nullptr, min_val, max_val);
+                }
+            }
+        }
+    }
+
+    if (var_registry.size() > 0) {
+        chromosome_length = static_cast<int>(var_registry.size());
+    }
 
     // Parse outputs
     if (HP.IsKeyWord("output" "number")) {
@@ -209,7 +523,12 @@ GeneticAlgorithm::GeneticAlgorithm(
         if (nOut < 0) {
             throw ErrGeneric(MBDYN_EXCEPT_ARGS, "genetic_algorithm: output number must be >= 0");
         }
-        chromosome_length = nOut; // Chromosome represents outputs
+        
+        // If no variables registered yet, use outputs as chromosome length
+        if (var_registry.size() == 0) {
+            chromosome_length = nOut;
+        }
+        
         m_outputs.assign(static_cast<size_t>(nOut), 0.);
         m_outputLabels.resize(static_cast<size_t>(nOut));
         
@@ -218,9 +537,13 @@ GeneticAlgorithm::GeneticAlgorithm(
         }
     }
 
-    // Initialize bounds (default [-10, 10])
-    lower_bounds.assign(chromosome_length, -10.0);
-    upper_bounds.assign(chromosome_length, 10.0);
+    // Initialize bounds (default [-10, 10] or from variable registry if available)
+    if (var_registry.size() > 0) {
+        var_registry.getBounds(lower_bounds, upper_bounds);
+    } else {
+        lower_bounds.assign(chromosome_length, -10.0);
+        upper_bounds.assign(chromosome_length, 10.0);
+    }
 
     // Load libraries
     gaLibHandle = dlopen(gaLibPath.c_str(), RTLD_LAZY);
@@ -240,9 +563,14 @@ GeneticAlgorithm::GeneticAlgorithm(
     gaGetPopSize = (GAGetPopSizeFunc)dlsym(gaLibHandle, "ga_get_population_size");
     gaGetChromLen = (GAGetChromLenFunc)dlsym(gaLibHandle, "ga_get_chromosome_length");
     gaCleanup = (GACleanupFunc)dlsym(gaLibHandle, "ga_cleanup");
+    gaSeedPopulation = (GASeedPopulationFunc)dlsym(gaLibHandle, "ga_seed_population");
 
     if (!gaInitPop) {
         throw ErrGeneric(MBDYN_EXCEPT_ARGS, "GA population init symbol missing");
+    }
+
+    if (!gaSeedPopulation) {
+        silent_cerr("GeneticAlgorithm(" << GetLabel() << "): warning - ga_seed_population() not available, falling back to individual updates" << std::endl);
     }
 
     // Resolve libcons.so symbols (fitness only)
@@ -266,9 +594,36 @@ GeneticAlgorithm::GeneticAlgorithm(
             gaGetIndividual(gaCtx, i, population[i].data());
         }
     }
-    
+
+    if (var_registry.size() > 0 && chromosome_length == static_cast<int>(var_registry.size())) {
+        std::vector<double> base_chromosome;
+        var_registry.encodeToChromosome(base_chromosome);
+        if (static_cast<int>(base_chromosome.size()) == chromosome_length) {
+            for (int j = 0; j < chromosome_length; ++j) {
+                if (j < static_cast<int>(lower_bounds.size())) {
+                    base_chromosome[j] = std::max(lower_bounds[j], std::min(upper_bounds[j], base_chromosome[j]));
+                }
+            }
+
+            if (!population.empty()) {
+                population[0] = base_chromosome;
+                populationSeededFromRegistry = true;
+
+                std::vector<double> flat_population(static_cast<size_t>(population_size * chromosome_length));
+                for (int i = 0; i < population_size; ++i) {
+                    const size_t offset = static_cast<size_t>(i) * static_cast<size_t>(chromosome_length);
+                    std::copy(population[i].begin(), population[i].end(), flat_population.begin() + offset);
+                }
+
+                if (gaSeedPopulation) {
+                    if (gaSeedPopulation(gaCtx, flat_population.data(), population_size, chromosome_length) != 0) {
+        }
+    }
+
     fitness_values.resize(population_size, 0.0);
-    best_individual.resize(chromosome_length, 0.0);
+    if (best_individual.size() != static_cast<size_t>(chromosome_length)) {
+        best_individual.assign(chromosome_length, 0.0);
+    }
 
     // Create operator instances (MODULE owns these)
     two_point_crossover = std::make_unique<TwoPointCrossover>();
@@ -281,9 +636,48 @@ GeneticAlgorithm::GeneticAlgorithm(
     std::cout << "  Population: " << population_size << ", Generations: " << generations << std::endl;
     std::cout << "  Operators: " << crossover_name << "/" << mutation_name << "/" << selection_name << std::endl;
     std::cout << "  Rates: crossover=" << crossover_rate << ", mutation=" << mutation_rate << std::endl;
+    std::cout << "  Registry variables: " << var_registry.size() << std::endl;
     std::cout << "  libga.so: population initialization ONLY" << std::endl;
     std::cout << "  libcons.so: fitness evaluation ONLY" << std::endl;
     std::cout << "  module: ALL GA operations (selection, crossover, mutation)" << std::endl;
+}
+
+// Register a variable for optimization
+bool GeneticAlgorithm::registerVariable(
+    const std::string& name, double* ptr,
+    double min_value, double max_value,
+    const std::string& description)
+{
+    return var_registry.registerVariable(name, ptr, min_value, max_value, description);
+}
+
+// Register a variable from a shared library
+bool GeneticAlgorithm::registerSharedVariable(
+    const std::string& library_path,
+    const std::string& symbol_name,
+    const std::string& var_name,
+    double min_value, double max_value,
+    const std::string& description)
+{
+    return var_registry.registerSharedVariable(library_path, symbol_name, var_name, 
+                                             min_value, max_value, description);
+}
+
+// Apply best solution to registered variables
+void GeneticAlgorithm::applyBestSolution() {
+    if (var_registry.size() == 0) {
+        return;
+    }
+
+    if (best_individual.size() < var_registry.size()) {
+        return;
+    }
+
+    // Decode best solution into variable registry
+    var_registry.decodeFromChromosome(best_individual);
+    
+    // Apply to actual variables
+    var_registry.applyValues();
 }
 
 // Destructor
@@ -311,6 +705,9 @@ GeneticAlgorithm::~GeneticAlgorithm(void)
 
 void GeneticAlgorithm::evaluatePopulation() {
     for (int i = 0; i < population_size; ++i) {
+        // Apply individual to variable registry for evaluation
+        var_registry.decodeFromChromosome(population[i]);
+        
         if (evaluateFitness) {
             // Use libcons.so ONLY for fitness
             fitness_values[i] = evaluateFitness(population[i].data(), chromosome_length,
@@ -328,7 +725,11 @@ void GeneticAlgorithm::evaluatePopulation() {
         if (fitness_values[i] > best_fitness) {
             best_fitness = fitness_values[i];
             best_individual = population[i];
-            // Update outputs
+            
+            // Apply best solution to registered variables
+            applyBestSolution();
+            
+            // Update outputs (for backward compatibility)
             for (size_t j = 0; j < m_outputs.size() && j < best_individual.size(); ++j) {
                 m_outputs[j] = best_individual[j];
             }
@@ -449,7 +850,27 @@ void GeneticAlgorithm::evolveGeneration() {
 }
 
 void GeneticAlgorithm::Output(OutputHandler& OH) const {
-    OH << "Generation " << current_generation << ", Best fitness = " << best_fitness << "\n";
+    if (!bToBeOutput()) {
+        return;
+    }
+
+    std::ostream& out = OH.Loadable();
+
+    out << "Generation " << current_generation << ", Best fitness = " << best_fitness << '\n';
+    out << "Best variable values:";
+    if (best_individual.empty()) {
+        out << " (none)";
+    }
+    out << '\n';
+
+    for (size_t i = 0; i < best_individual.size(); ++i) {
+        std::string varName = var_registry.getNameByIndex(i);
+        if (!varName.empty()) {
+            out << "  " << varName << " = " << best_individual[i] << '\n';
+        } else {
+            out << "  var[" << i << "] = " << best_individual[i] << '\n';
+        }
+    }
 }
 
 void GeneticAlgorithm::WorkSpaceDim(integer* piNumRows, integer* piNumCols) const {
@@ -481,6 +902,9 @@ SubVectorHandler& GeneticAlgorithm::AssRes(
         evolveGeneration();
     }
     
+    // Always ensure best solution is applied to registered variables
+    applyBestSolution();
+    
     return WorkVec;
 }
 
@@ -511,7 +935,7 @@ doublereal GeneticAlgorithm::dGetPrivData(unsigned int i) const {
     if (i == 1U) {
         return best_fitness;
     }
-    unsigned int outIdx = (i >= 2U) ? (i - 2U) : UINT_MAX;
+    unsigned int outIdx = (i >= 2U) ? (i - 2U) : std::numeric_limits<unsigned int>::max();
     if (outIdx < m_outputs.size()) {
         return m_outputs[outIdx];
     }
@@ -525,9 +949,6 @@ extern "C" int module_init(const char *module_name, void *pdm, void *php) {
         delete rf;
         return -1;
     }
-    UserDefinedElemRead *rf2 = new UDERead<GeneticAlgorithm>;
-    if (!SetUDE("genetic algorithm optimization", rf2)) {
-        delete rf2;
-    }
+    
     return 0;
 }

@@ -15,6 +15,7 @@ typedef void (*ga_set_individual_t)(void*, int, const double*);
 typedef int (*ga_get_population_size_t)(void*);
 typedef int (*ga_get_chromosome_length_t)(void*);
 typedef void (*ga_cleanup_t)(void*);
+typedef int (*ga_seed_population_t)(void*, const double*, int, int);
 
 // Function pointers for libcons.so
 typedef double (*evaluate_fitness_t)(const double*, int, const double*, int);
@@ -41,12 +42,13 @@ int main() {
     auto ga_get_population_size = (ga_get_population_size_t)dlsym(libga, "ga_get_population_size");
     auto ga_get_chromosome_length = (ga_get_chromosome_length_t)dlsym(libga, "ga_get_chromosome_length");
     auto ga_cleanup = (ga_cleanup_t)dlsym(libga, "ga_cleanup");
+    auto ga_seed_population = (ga_seed_population_t)dlsym(libga, "ga_seed_population");
     
-    if (!ga_init_population || !ga_get_individual) {
+    if (!ga_init_population || !ga_get_individual || !ga_seed_population) {
         std::cerr << "Failed to load ga functions" << std::endl;
         return 1;
     }
-    std::cout << "   ✓ Functions loaded: ga_init_population, ga_get_individual, ga_set_individual" << std::endl;
+    std::cout << "   ✓ Functions loaded: ga_init_population, ga_get_individual, ga_set_individual, ga_seed_population" << std::endl;
     
     // Load libcons.so
     std::cout << "\n2. Loading libcons.so..." << std::endl;
@@ -76,6 +78,20 @@ int main() {
         return 1;
     }
     std::cout << "   ✓ Population initialized: " << pop_size << " individuals, " << n_genes << " genes each" << std::endl;
+
+    std::vector<double> seeded(static_cast<size_t>(pop_size * n_genes));
+    for (int i = 0; i < pop_size; ++i) {
+        for (int j = 0; j < n_genes; ++j) {
+            const size_t idx = static_cast<size_t>(i) * static_cast<size_t>(n_genes) + static_cast<size_t>(j);
+            seeded[idx] = (i == 0) ? (1.0 + j) : (0.1 * (i + 1) + j);
+        }
+    }
+    if (ga_seed_population(pop_ctx, seeded.data(), pop_size, n_genes) == 0) {
+        std::cout << "   ✓ Seeded population using ga_seed_population" << std::endl;
+    } else {
+        std::cerr << "   ✗ Failed to seed population" << std::endl;
+        return 1;
+    }
     
     // Evaluate fitness (using libcons.so) - THIS IS DONE BY MODULE
     std::cout << "\n4. Evaluating population (via libcons.so, orchestrated by module logic)..." << std::endl;

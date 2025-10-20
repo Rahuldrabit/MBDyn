@@ -1,0 +1,208 @@
+# Corrected .mbd syntax for GA optimization with libga_init.cc
+# This file demonstrates the proper keyword usage for the updated module
+
+begin: data;
+    problem: initial value;
+end: data;
+
+begin: initial value;
+    initial time: 0.;
+    final time: 10.;
+    time step: 1.e-3;
+    tolerance: 1e-9;
+    max iterations: 10;
+    method: ms, .6;
+end: initial value;
+
+begin: control data;
+    structural nodes:
+        +1  # ground
+        +6  # test nodes
+    ;
+    joints:
+        +5  # test joints
+    ;
+    loadable elements: 1;  # GA optimization element
+    output results: netcdf;
+end: control data;
+
+reference: 0,
+    reference, global, null,
+    reference, global, eye,
+    reference, global, null,
+    reference, global, null;
+
+begin: nodes;
+    structural: 0, static,
+        reference, 0, null,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    # Test nodes for the optimization
+    structural: 121, dynamic,
+        reference, 0, 1., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    structural: 123, dynamic,
+        reference, 0, 2., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    structural: 126, dynamic,
+        reference, 0, 3., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    structural: 130, dynamic,
+        reference, 0, 4., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    structural: 131, dynamic,
+        reference, 0, 5., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+    
+    structural: 132, dynamic,
+        reference, 0, 6., 0., 0.,
+        reference, 0, eye,
+        reference, 0, null,
+        reference, 0, null;
+end: nodes;
+
+begin: elements;
+    # Create some test joints to provide moment data
+    joint: 101, total joint,
+        121,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        0,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        position constraint, 1, 1, 1, null,
+        orientation constraint, 0, 0, 1, 
+            component, 
+                const, 0.,
+                const, 0.,
+                sine, 0., 2.*pi, 1., forever, 0.;
+
+    joint: 102, total joint,
+        123,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        0,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        position constraint, 1, 1, 1, null,
+        orientation constraint, 0, 0, 1, 
+            component, 
+                const, 0.,
+                const, 0.,
+                cosine, 0., 2.*pi, 1.5, forever, 0.;
+
+    joint: 103, total joint,
+        130,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        0,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        position constraint, 1, 1, 1, null,
+        orientation constraint, 0, 0, 1, 
+            component, 
+                const, 0.,
+                const, 0.,
+                ramp, 0.5, 0., 1., forever, 0.;
+
+    joint: 104, total joint,
+        131,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        0,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        position constraint, 1, 1, 1, null,
+        orientation constraint, 0, 0, 1, 
+            component, 
+                const, 0.,
+                const, 0.,
+                step, 1., 2., forever, 0.;
+
+    joint: 105, total joint,
+        132,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        0,
+            position, reference, 0, null,
+            position orientation, reference, 0, eye,
+            rotation orientation, reference, 0, eye,
+        position constraint, 1, 1, 1, null,
+        orientation constraint, 0, 0, 1, 
+            component, 
+                const, 0.,
+                const, 0.,
+                exponential, 2., 0.1, forever, 0.;
+
+    # GA Optimization Element - CORRECTED SYNTAX
+    user defined: 1000, genetic algorithm optimization,
+        # Input drives (sampled each timestep)
+        inputs number, 5,
+            element, 101, joint, string, "M[2]", direct,
+            element, 102, joint, string, "M[2]", direct,
+            element, 103, joint, string, "M[2]", direct,
+            element, 104, joint, string, "M[2]", direct,
+            element, 105, joint, string, "M[2]", direct,
+        
+        # Library paths (CORRECTED: use separate keywords)
+        genetic algorithm, "./libga.so",       # Path to libga_init.cc compiled library
+        constraint function, "./libcons.so",   # Path to fitness library
+        
+        # GA parameters
+        population, 50,                # Population size (integer)
+        generation, 10,                # Number of generations
+        
+        # Operators
+        crossover, "two_point",
+        mutation, "uniform",
+        selection, "tournament",
+        
+        # Rates
+        mutation rate, 0.4,
+        crossover rate, 0.3,
+        
+        # Bounds (CORRECTED: use separate keywords)
+        population_lower, 0.0,         # Lower bound for all genes
+        population_upper, 1.0,         # Upper bound for all genes
+        
+        # Return best N individuals (CORRECTED: new keyword)
+        return_best_population, 3,     # Return top 3 individuals
+        
+        # Outputs (will contain: [ind0_gene0, ind0_gene1, ..., ind1_gene0, ind1_gene1, ...])
+        # With return_best_population=3 and chromosome_length (inferred from inputs or default 5),
+        # you need 3*5=15 output labels if mapping all genes from top 3 individuals
+        output number, 15,
+            121, 122, 123, 124, 125,   # Individual 0 (best)
+            126, 127, 128, 129, 130,   # Individual 1
+            131, 132, 133, 134, 135;   # Individual 2
+
+    # Output the GA element to see results
+    output: loadable, 1000;
+end: elements;
+
+# vim:ft=mbd

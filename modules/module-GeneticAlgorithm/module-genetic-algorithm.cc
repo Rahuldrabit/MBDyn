@@ -1,28 +1,3 @@
-/*
-  NOTE: If you deleted a git branch but it still appears in VSCode's branch list:
-    1) Update/prune remote refs locally:
-         git fetch --prune origin
-       or
-         git remote prune origin
-
-    2) Remove local branch if present:
-         git branch -d <branch-name>
-       (use -D to force)
-
-    3) Ensure remote branch is deleted:
-         git push origin --delete <branch-name>
-
-    4) Refresh VSCode's Git view or reload window:
-         Ctrl+Shift+P -> "Git: Refresh"  (or) "Developer: Reload Window"
-
-    5) If a stale remote ref persists, remove it manually:
-         git update-ref -d refs/remotes/origin/<branch-name>
-
-    6) Restart VSCode if needed.
-
-  These steps fix most cases where VSCode still shows deleted branches.
-*/
-
 /* MBDyn UDE: genetic_algorithm
  *
  * Complete GA implementation in the module:
@@ -31,12 +6,11 @@
  * - This module: handles ALL GA operations (selection, crossover, mutation, evolution)
  */
 
-#include "mbconfig.h"
+//#include "mbconfig.h"
 
 #include <dlfcn.h>
 #include <cmath>
 #include <cstdlib>
-#include <ctime>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -58,17 +32,129 @@
 #include "selection-operator/selection-operator.h"
 
 // libga.so minimal API (population initialization only)
-typedef void* (*GAInitPopFunc)(int pop_size, int chrom_len, const double* lower, const double* upper);
-typedef void  (*GAGetIndividualFunc)(void* ctx, int index, double* individual);
-typedef void  (*GASetIndividualFunc)(void* ctx, int index, const double* individual);
-typedef int   (*GAGetPopSizeFunc)(void* ctx);
-typedef int   (*GAGetChromLenFunc)(void* ctx);
-typedef void  (*GACleanupFunc)(void* ctx);
-typedef int   (*GASeedPopulationFunc)(void* ctx, const double* pop_data, int pop_size, int chrom_len);
+typedef void* (*GACtxCreateFunc)(int pop_size, int chrom_len, const double* lower, const double* upper, unsigned int seed);
+typedef void  (*GACtxDestroyFunc)(void* ctx);
+typedef int   (*GARandomizePopulationFunc)(void* ctx, double sigma_fraction);
+typedef int   (*GARegisterEnvPtrsFunc)(void* ctx, double* inputs, int nInputs, double* outputs, int nOutputs, double* desired);
+typedef int   (*GAEvaluatePopulationFunc)(void* ctx);
+typedef int   (*GABestIndexFunc)(void* ctx);
+typedef void  (*GAGetBestIndividualFunc)(void* ctx, double* out_genes);
+typedef int   (*GAGetTopNFunc)(void* ctx, int N, double* out_genes);
 
 // libcons.so fitness API (fitness evaluation only)
 typedef double (*EvaluateFitnessFunc)(const double* genes, int n_genes, const double* inputs, int n_inputs);
-typedef double (*EvaluateConstraintFunc)(const double* genes, int n_genes);
+
+
+
+class GeneticAlgorithm : public UserDefinedElem {
+private:
+    // GA parameters
+    int population_size;
+    int generations;
+    int current_generation;
+    int chromosome_length;
+    int return_best_population;
+    
+    // Operator configuration
+    std::string crossover_name;
+    std::string mutation_name;
+    std::string selection_name;
+    double mutation_rate;
+    double crossover_rate;
+    double elite_ratio;
+    
+    // Bounds
+    std::vector<double> lower_bounds;
+    std::vector<double> upper_bounds;
+    
+    // Input/output handling
+    struct InputDC {
+        DriveCaller* pDC;
+    };
+    std::vector<InputDC> m_inputs;
+    std::vector<doublereal> m_inputVals;
+    std::vector<doublereal> m_outputs;
+    std::vector<integer> m_outputLabels;
+    
+    // GA state (MODULE manages all this)
+    std::vector<std::vector<double>> population;
+    std::vector<double> fitness_values;
+    std::vector<double> best_individual;
+    double best_fitness;
+    
+    // RNG
+    std::mt19937 rng;
+    std::uniform_real_distribution<double> uniform_dist;
+    
+    // Operator instances (MODULE owns these)
+    std::unique_ptr<TwoPointCrossover> two_point_crossover;
+    std::unique_ptr<OnePointCrossover> one_point_crossover;
+    std::unique_ptr<UniformCrossover> uniform_crossover;
+    std::unique_ptr<BlendCrossover> blend_crossover;
+    std::unique_ptr<MutationOperators> mutation_ops;
+    
+    // Library handles (minimal usage)
+    void* gaLibHandle;
+    void* consLibHandle;
+    
+    // libga.so functions (initialization only)
+    GACtxCreateFunc gaCtxCreate;
+    GACtxDestroyFunc gaCtxDestroy;
+    GARandomizePopulationFunc gaRandomizePopulation;
+    GARegisterEnvPtrsFunc gaRegisterEnvPtrs;
+    GAEvaluatePopulationFunc gaEvaluatePopulation;
+    GABestIndexFunc gaBestIndex;
+    GAGetBestIndividualFunc gaGetBestIndividual;
+    GAGetTopNFunc gaGetTopN;
+    
+    // libcons.so functions (fitness only)
+    EvaluateFitnessFunc evaluateFitness;
+    
+    void* gaCtx; // Population context from libga.so
+    
+    // Variable registry for optimization variables
+    VariableRegistry var_registry;
+    
+    // Internal GA methods (MODULE does all the work)
+    void evaluatePopulation();
+    void evolveGeneration();
+    std::vector<int> selectElite();
+    Individual selectParent();
+    void performCrossover(std::vector<std::vector<double>>& new_pop, int& offspring_count);
+    void applyMutation(std::vector<double>& individual);
+    
+    // Apply best solution to registered variables
+    void applyBestSolution();
+
+public:
+    GeneticAlgorithm(unsigned uLabel, const DofOwner *pDO,
+        DataManager* pDM, MBDynParser& HP);
+    virtual ~GeneticAlgorithm(void);
+
+    virtual void Output(OutputHandler& OH) const;
+    virtual void WorkSpaceDim(integer* piNumRows, integer* piNumCols) const;
+    VariableSubMatrixHandler& AssJac(VariableSubMatrixHandler& WorkMat,
+        doublereal dCoef, const VectorHandler& XCurr,
+        const VectorHandler& XPrimeCurr);
+    SubVectorHandler& AssRes(SubVectorHandler& WorkVec,
+        doublereal dCoef, const VectorHandler& XCurr, 
+        const VectorHandler& XPrimeCurr);
+    unsigned int iGetNumPrivData(void) const;
+    virtual unsigned int iGetPrivDataIdx(const char *s) const;
+    virtual doublereal dGetPrivData(unsigned int i) const;
+    
+    // Register a variable for optimization
+    bool registerVariable(const std::string& name, double* ptr, 
+                          double min_value, double max_value,
+                          const std::string& description = "");
+                          
+    // Register a variable from a shared library
+    bool registerSharedVariable(const std::string& library_path,
+                               const std::string& symbol_name,
+                               const std::string& var_name,
+                               double min_value, double max_value,
+                               const std::string& description = "");
+};
 
 // Variable Registry to dynamically link optimization variables
 class VariableRegistry {
@@ -284,129 +370,20 @@ public:
     }
 };
 
-class GeneticAlgorithm : public UserDefinedElem {
-private:
-    // GA parameters
-    int population_size;
-    int generations;
-    int current_generation;
-    int chromosome_length;
-    
-    // Operator configuration
-    std::string crossover_name;
-    std::string mutation_name;
-    std::string selection_name;
-    double mutation_rate;
-    double crossover_rate;
-    double elite_ratio;
-    
-    // Bounds
-    std::vector<double> lower_bounds;
-    std::vector<double> upper_bounds;
-    
-    // Input/output handling
-    struct InputDC {
-        DriveCaller* pDC;
-    };
-    std::vector<InputDC> m_inputs;
-    std::vector<doublereal> m_inputVals;
-    std::vector<doublereal> m_outputs;
-    std::vector<integer> m_outputLabels;
-    
-    // GA state (MODULE manages all this)
-    std::vector<std::vector<double>> population;
-    std::vector<double> fitness_values;
-    std::vector<double> best_individual;
-    double best_fitness;
-    
-    // RNG
-    std::mt19937 rng;
-    std::uniform_real_distribution<double> uniform_dist;
-    
-    // Operator instances (MODULE owns these)
-    std::unique_ptr<TwoPointCrossover> two_point_crossover;
-    std::unique_ptr<OnePointCrossover> one_point_crossover;
-    std::unique_ptr<UniformCrossover> uniform_crossover;
-    std::unique_ptr<BlendCrossover> blend_crossover;
-    std::unique_ptr<MutationOperators> mutation_ops;
-    
-    // Library handles (minimal usage)
-    void* gaLibHandle;
-    void* consLibHandle;
-    
-    // libga.so functions (initialization only)
-    GAInitPopFunc gaInitPop;
-    GAGetIndividualFunc gaGetIndividual;
-    GASetIndividualFunc gaSetIndividual;
-    GAGetPopSizeFunc gaGetPopSize;
-    GAGetChromLenFunc gaGetChromLen;
-    GACleanupFunc gaCleanup;
-    GASeedPopulationFunc gaSeedPopulation;
-    
-    // libcons.so functions (fitness only)
-    EvaluateFitnessFunc evaluateFitness;
-    EvaluateConstraintFunc evaluateConstraint;
-    
-    void* gaCtx; // Population context from libga.so
-    
-    // Variable registry for optimization variables
-    VariableRegistry var_registry;
-
-    bool populationSeededFromRegistry;
-    
-    // Internal GA methods (MODULE does all the work)
-    void evaluatePopulation();
-    void evolveGeneration();
-    std::vector<int> selectElite();
-    Individual selectParent();
-    void performCrossover(std::vector<std::vector<double>>& new_pop, int& offspring_count);
-    void applyMutation(std::vector<double>& individual);
-    
-    // Apply best solution to registered variables
-    void applyBestSolution();
-
-public:
-    GeneticAlgorithm(unsigned uLabel, const DofOwner *pDO,
-        DataManager* pDM, MBDynParser& HP);
-    virtual ~GeneticAlgorithm(void);
-
-    virtual void Output(OutputHandler& OH) const;
-    virtual void WorkSpaceDim(integer* piNumRows, integer* piNumCols) const;
-    VariableSubMatrixHandler& AssJac(VariableSubMatrixHandler& WorkMat,
-        doublereal dCoef, const VectorHandler& XCurr,
-        const VectorHandler& XPrimeCurr);
-    SubVectorHandler& AssRes(SubVectorHandler& WorkVec,
-        doublereal dCoef, const VectorHandler& XCurr, 
-        const VectorHandler& XPrimeCurr);
-    unsigned int iGetNumPrivData(void) const;
-    virtual unsigned int iGetPrivDataIdx(const char *s) const;
-    virtual doublereal dGetPrivData(unsigned int i) const;
-    
-    // Register a variable for optimization
-    bool registerVariable(const std::string& name, double* ptr, 
-                          double min_value, double max_value,
-                          const std::string& description = "");
-                          
-    // Register a variable from a shared library
-    bool registerSharedVariable(const std::string& library_path,
-                               const std::string& symbol_name,
-                               const std::string& var_name,
-                               double min_value, double max_value,
-                               const std::string& description = "");
-};
-
 // Constructor
 GeneticAlgorithm::GeneticAlgorithm(
     unsigned uLabel, const DofOwner *pDO,
     DataManager* pDM, MBDynParser& HP)
 : UserDefinedElem(uLabel, pDO), 
-    gaLibHandle(nullptr), consLibHandle(nullptr),
-    gaInitPop(nullptr), gaGetIndividual(nullptr), gaSetIndividual(nullptr),
-    gaGetPopSize(nullptr), gaGetChromLen(nullptr), gaCleanup(nullptr), gaSeedPopulation(nullptr),
-    evaluateFitness(nullptr), evaluateConstraint(nullptr),
-    gaCtx(nullptr),
-    populationSeededFromRegistry(false),
+        gaLibHandle(nullptr), consLibHandle(nullptr),
+        gaCtxCreate(nullptr), gaCtxDestroy(nullptr),
+        gaRandomizePopulation(nullptr), gaRegisterEnvPtrs(nullptr),
+        gaEvaluatePopulation(nullptr), gaBestIndex(nullptr),
+        gaGetBestIndividual(nullptr), gaGetTopN(nullptr),
+        evaluateFitness(nullptr),
+        gaCtx(nullptr),
     current_generation(0), best_fitness(-1e30),
+    return_best_population(1),
   rng(std::random_device{}()), uniform_dist(0.0, 1.0)
 {
     // Defaults
@@ -468,6 +445,17 @@ GeneticAlgorithm::GeneticAlgorithm(
     }
     if (HP.IsKeyWord("elite" "ratio")) {
         elite_ratio = HP.GetReal();
+    }
+    if (HP.IsKeyWord("population_upper")) {
+        double val = HP.GetReal();
+        std::fill(upper_bounds.begin(), upper_bounds.end(), val);
+    }
+    if (HP.IsKeyWord("population_lower")) {
+        double val = HP.GetReal();
+        std::fill(lower_bounds.begin(), lower_bounds.end(), val);
+    }
+    if (HP.IsKeyWord("return_best_population")) {
+        return_best_population = HP.GetInt();
     }
     
     // Parse variable registry entries
@@ -537,13 +525,16 @@ GeneticAlgorithm::GeneticAlgorithm(
         }
     }
 
-    // Initialize bounds (default [-10, 10] or from variable registry if available)
+    // Initialize bounds (default [0, 1] or from variable registry if available)
     if (var_registry.size() > 0) {
         var_registry.getBounds(lower_bounds, upper_bounds);
     } else {
-        lower_bounds.assign(chromosome_length, -10.0);
-        upper_bounds.assign(chromosome_length, 10.0);
+        lower_bounds.assign(chromosome_length, 0.0);
+        upper_bounds.assign(chromosome_length, 1.0);
     }
+    
+    // Apply user-specified bounds if provided (after defaults)
+    // Note: population_upper/population_lower parsed later will override these
 
     // Load libraries
     gaLibHandle = dlopen(gaLibPath.c_str(), RTLD_LAZY);
@@ -557,68 +548,58 @@ GeneticAlgorithm::GeneticAlgorithm(
     }
 
     // Resolve libga.so symbols (initialization only)
-    gaInitPop = (GAInitPopFunc)dlsym(gaLibHandle, "ga_init_population");
-    gaGetIndividual = (GAGetIndividualFunc)dlsym(gaLibHandle, "ga_get_individual");
-    gaSetIndividual = (GASetIndividualFunc)dlsym(gaLibHandle, "ga_set_individual");
-    gaGetPopSize = (GAGetPopSizeFunc)dlsym(gaLibHandle, "ga_get_population_size");
-    gaGetChromLen = (GAGetChromLenFunc)dlsym(gaLibHandle, "ga_get_chromosome_length");
-    gaCleanup = (GACleanupFunc)dlsym(gaLibHandle, "ga_cleanup");
-    gaSeedPopulation = (GASeedPopulationFunc)dlsym(gaLibHandle, "ga_seed_population");
+    gaCtxCreate = (GACtxCreateFunc)dlsym(gaLibHandle, "ga_ctx_create");
+    gaCtxDestroy = (GACtxDestroyFunc)dlsym(gaLibHandle, "ga_ctx_destroy");
+    gaRandomizePopulation = (GARandomizePopulationFunc)dlsym(gaLibHandle, "ga_randomize_population");
+    gaRegisterEnvPtrs = (GARegisterEnvPtrsFunc)dlsym(gaLibHandle, "ga_register_env_ptrs");
+    gaEvaluatePopulation = (GAEvaluatePopulationFunc)dlsym(gaLibHandle, "ga_evaluate_population");
+    gaBestIndex = (GABestIndexFunc)dlsym(gaLibHandle, "ga_best_index");
+    gaGetBestIndividual = (GAGetBestIndividualFunc)dlsym(gaLibHandle, "ga_get_best_individual");
+    gaGetTopN = (GAGetTopNFunc)dlsym(gaLibHandle, "ga_get_top_n");
 
-    if (!gaInitPop) {
-        throw ErrGeneric(MBDYN_EXCEPT_ARGS, "GA population init symbol missing");
+    if (!gaCtxCreate) {
+        throw ErrGeneric(MBDYN_EXCEPT_ARGS, "GA context creation symbol missing: ga_ctx_create");
     }
-
-    if (!gaSeedPopulation) {
-        silent_cerr("GeneticAlgorithm(" << GetLabel() << "): warning - ga_seed_population() not available, falling back to individual updates" << std::endl);
+    
+    if (!gaGetTopN) {
+        silent_cerr("GeneticAlgorithm(" << GetLabel() << "): warning - ga_get_top_n() not available" << std::endl);
     }
 
     // Resolve libcons.so symbols (fitness only)
     if (consLibHandle) {
         evaluateFitness = (EvaluateFitnessFunc)dlsym(consLibHandle, "evaluate_fitness");
-        evaluateConstraint = (EvaluateConstraintFunc)dlsym(consLibHandle, "evaluate_constraint");
         if (!evaluateFitness) {
             silent_cerr("GeneticAlgorithm(" << GetLabel() << "): warning - fitness function not found" << std::endl);
         }
     }
 
     // Initialize population via libga.so (ONLY initialization)
-    gaCtx = gaInitPop(population_size, chromosome_length, 
-                      lower_bounds.data(), upper_bounds.data());
+    unsigned int seed = static_cast<unsigned int>(std::random_device{}());
+    gaCtx = gaCtxCreate(population_size, chromosome_length, 
+                        lower_bounds.data(), upper_bounds.data(), seed);
+    
+    if (!gaCtx) {
+        throw ErrGeneric(MBDYN_EXCEPT_ARGS, "Failed to create GA context");
+    }
+    
+    // Randomize initial population via libga
+    if (gaRandomizePopulation) {
+        gaRandomizePopulation(gaCtx, 0.3);  // sigma_fraction = 0.3
+    }
+    
+    // Register environment pointers for fitness evaluation
+    if (gaRegisterEnvPtrs) {
+        gaRegisterEnvPtrs(gaCtx, m_inputVals.data(), static_cast<int>(m_inputVals.size()),
+                          m_outputs.data(), static_cast<int>(m_outputs.size()), nullptr);
+    }
     
     // Copy population to MODULE storage (MODULE manages it from now on)
     population.resize(population_size);
     for (int i = 0; i < population_size; ++i) {
         population[i].resize(chromosome_length);
-        if (gaGetIndividual) {
-            gaGetIndividual(gaCtx, i, population[i].data());
-        }
     }
 
-    if (var_registry.size() > 0 && chromosome_length == static_cast<int>(var_registry.size())) {
-        std::vector<double> base_chromosome;
-        var_registry.encodeToChromosome(base_chromosome);
-        if (static_cast<int>(base_chromosome.size()) == chromosome_length) {
-            for (int j = 0; j < chromosome_length; ++j) {
-                if (j < static_cast<int>(lower_bounds.size())) {
-                    base_chromosome[j] = std::max(lower_bounds[j], std::min(upper_bounds[j], base_chromosome[j]));
-                }
-            }
-
-            if (!population.empty()) {
-                population[0] = base_chromosome;
-                populationSeededFromRegistry = true;
-
-                std::vector<double> flat_population(static_cast<size_t>(population_size * chromosome_length));
-                for (int i = 0; i < population_size; ++i) {
-                    const size_t offset = static_cast<size_t>(i) * static_cast<size_t>(chromosome_length);
-                    std::copy(population[i].begin(), population[i].end(), flat_population.begin() + offset);
-                }
-
-                if (gaSeedPopulation) {
-                    if (gaSeedPopulation(gaCtx, flat_population.data(), population_size, chromosome_length) != 0) {
-        }
-    }
+    // Variable registry seeding no longer needed here (libga handles initialization)
 
     fitness_values.resize(population_size, 0.0);
     if (best_individual.size() != static_cast<size_t>(chromosome_length)) {
@@ -683,8 +664,8 @@ void GeneticAlgorithm::applyBestSolution() {
 // Destructor
 GeneticAlgorithm::~GeneticAlgorithm(void)
 {
-    if (gaCleanup && gaCtx) {
-        gaCleanup(gaCtx);
+    if (gaCtxDestroy && gaCtx) {
+        gaCtxDestroy(gaCtx);
     }
     if (gaLibHandle) {
         dlclose(gaLibHandle);
@@ -900,6 +881,30 @@ SubVectorHandler& GeneticAlgorithm::AssRes(
     // MODULE runs one generation per timestep (or configure differently)
     if (current_generation < generations) {
         evolveGeneration();
+    }
+    
+    // Call libga to evaluate population and get top N
+    if (gaEvaluatePopulation && gaCtx) {
+        gaEvaluatePopulation(gaCtx);
+    }
+    
+    // Get best N individuals and update outputs
+    if (gaGetTopN && gaCtx && return_best_population > 0) {
+        int N = std::min(return_best_population, static_cast<int>(m_outputs.size() / chromosome_length));
+        if (N > 0) {
+            std::vector<double> top_genes(static_cast<size_t>(N * chromosome_length));
+            int got = gaGetTopN(gaCtx, N, top_genes.data());
+            
+            // Map top individuals to outputs
+            for (int i = 0; i < got && i < N; ++i) {
+                for (int j = 0; j < chromosome_length; ++j) {
+                    size_t out_idx = static_cast<size_t>(i * chromosome_length + j);
+                    if (out_idx < m_outputs.size()) {
+                        m_outputs[out_idx] = top_genes[static_cast<size_t>(i * chromosome_length + j)];
+                    }
+                }
+            }
+        }
     }
     
     // Always ensure best solution is applied to registered variables
